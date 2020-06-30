@@ -1,0 +1,46 @@
+---
+title: "Download e plot do CAR"
+author: "PFFernandes"
+date: "30/06/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introdução:
+Nesse script buscamos realizar o download dos dados shapefile do Cadastro Ambiental Rural(CAR) do site "http://www.car.gov.br/publico/imoveis/index", carregar, plotar e realizar algumas analises.
+
+#### Comando para checar se existem os pacotes em seu PC e baixar caso não possua:
+```{r}
+list.of.packages <- c("raster", "sp", "rgdal", "dplyr", "XML", "curl")
+
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) 
+
+install.packages(new.packages)
+```
+
+#### Comando para carregar os pacotes:
+```{r}
+require(raster)
+require(sp)
+require(rgdal)
+require(dplyr)
+require(XML)
+require(curl)
+```
+
+#### Acessar o site e baixar os dados do CAR para Campina do Monte Alegre:
+```{r}
+NÂO CONSIGO!!!!
+}
+```
+
+#### Carregar os mapas para o R:
+```{r}
+
+```
+
+
