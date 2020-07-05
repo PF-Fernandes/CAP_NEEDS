@@ -121,3 +121,10 @@ Existem algumas sobreposições nos mapas .....
 
 
 ## Analises:
+
+#### Quantidade total de área/hectares??:
+```{r}
+sum(CMA_car@data$NUM_AREA)
+```
+
+
