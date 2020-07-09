@@ -121,10 +121,47 @@ Existem algumas sobreposições nos mapas .....
 
 
 ## Analises:
+Quantidade de area total, separados em p,m,g e porcentagem
+Quantidade total de imoveis, separados em p,m,g e porcentagem
 
-#### Quantidade total de área/hectares??:
+### Quantidade total de área/hectares:
 ```{r}
 sum(CMA_car@data$NUM_AREA)
 ```
+### Quantidade total de área/hectares de grandes propriedades:
+```{r}
+obj<- CMA_car[CMA_car@data$NUM_AREA > 330.000000,]
+sum(obj@data$NUM_AREA)
+```
+
+
+
+
+
+### Quantidade total de imoveis rurais:
+```{r}
+str(CMA_car@data$NUM_MODULO)
+```
+
+#### Quantidade de imoveis de pequenas propriedades:
+```{r}
+sum(peq_prop)
+```
+
+#### Quantidade de imoveis de médias propriedades:
+```{r}
+sum(med_prop&med_prop1)
+```
+
+#### Quantidade de imoveis de grandes propriedades:
+```{r}
+sum(gra_prop)
+```
+
+```{r}
+View(CMA_car@data)
+```
+
+
 
 
