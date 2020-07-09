@@ -164,4 +164,9 @@ View(CMA_car@data)
 
 
 
+```{r}
+obj<-CMA_car[CMA_car@data$NUM_AREA > 330.000000,]
+
+sum(obj@data$NUM_AREA)
+```
 
