@@ -50,6 +50,11 @@ plot(CMA_car)
 CMA_car@data
 ```
 
+#### Acessando a tabela de atributos:
+```{r}
+View(CMA_car@data)
+```
+
 #### Acessando as informações mais importantes: 
 ```{r,results='hide'}
 # Número de áreas
@@ -121,24 +126,8 @@ Existem algumas sobreposições nos mapas .....
 
 
 ## Analises:
-Quantidade de area total, separados em p,m,g e porcentagem
-Quantidade total de imoveis, separados em p,m,g e porcentagem
 
-### Quantidade total de área/hectares:
-```{r}
-sum(CMA_car@data$NUM_AREA)
-```
-### Quantidade total de área/hectares de grandes propriedades:
-```{r}
-obj<- CMA_car[CMA_car@data$NUM_AREA > 330.000000,]
-sum(obj@data$NUM_AREA)
-```
-
-
-
-
-
-### Quantidade total de imoveis rurais:
+#### Quantidade total de imoveis rurais:
 ```{r}
 str(CMA_car@data$NUM_MODULO)
 ```
@@ -146,27 +135,56 @@ str(CMA_car@data$NUM_MODULO)
 #### Quantidade de imoveis de pequenas propriedades:
 ```{r}
 sum(peq_prop)
+(232/257)*100 # Porcentagem
 ```
 
 #### Quantidade de imoveis de médias propriedades:
 ```{r}
 sum(med_prop&med_prop1)
+(16/257)*100 # Porcentagem
 ```
 
 #### Quantidade de imoveis de grandes propriedades:
 ```{r}
 sum(gra_prop)
+(9/257)*100 # Porcentagem
 ```
 
+###############################################################################
+
+#### Quantidade total de área/hectares:
 ```{r}
-View(CMA_car@data)
+sum(CMA_car@data$NUM_AREA)
 ```
 
-
-
+#### Quantidade total de área/hectares de pequenas propriedades:
 ```{r}
-obj<-CMA_car[CMA_car@data$NUM_AREA > 330.000000,]
+ha_peq <- CMA_car[CMA_car@data$NUM_AREA <= 88.000000,]
+sum(ha_peq@data$NUM_AREA)
 
-sum(obj@data$NUM_AREA)
+(3634.191/15075.57)*100 # Porcentagem
 ```
+
+#### Quantidade total de área/hectares de médias propriedades:
+```{r}
+ha_med <- CMA_car@data$NUM_AREA > 88.000000
+ha_med1 <- CMA_car@data$NUM_AREA <= 330.000000
+ha_med2 <- CMA_car[ha_med&ha_med1,]
+sum(ha_med2@data$NUM_AREA)
+
+(2890.142/15075.57)*100 # Porcentagem
+```
+
+#### Quantidade total de área/hectares de grandes propriedades:
+```{r}
+ha_gra <- CMA_car[CMA_car@data$NUM_AREA > 330.000000,]
+sum(ha_gra@data$NUM_AREA)
+
+(8551.24/15075.57)*100 # Porcentagem
+```
+
+
+
+
+
 
