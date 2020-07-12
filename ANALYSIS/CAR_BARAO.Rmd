@@ -174,7 +174,4 @@ ha_g<- sum(ha_gra_prop@data$NUM_AREA)
 (ha_g/ha)*100 
 ```
 
-```{r}
-nrow(BARAO_car)
-```
 
