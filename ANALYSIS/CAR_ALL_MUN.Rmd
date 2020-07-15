@@ -141,3 +141,15 @@ ha_g<- (388342.5+217255.1)
 (ha_g/ha)*100 
 ```
 
+
+## Histograma:
+```{r, fig.align='center'}
+hist(ALL_car@data$NUM_AREA,breaks=25000,xlim = c(0,80), ylim = c(0,1000),
+     main = "", 
+     xlab = "Hectares", ylab = "Número de Imóveis", 
+     col = c("grey"), 
+     border = TRUE)
+```
+
+
+
