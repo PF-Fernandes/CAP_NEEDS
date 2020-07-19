@@ -32,7 +32,7 @@ require(curl)
 #### Carregar os mapas do Sudoeste Paulista para o R:
 ```{r,warning=FALSE,message=FALSE,results='hide'}
 # Municipios com 20 ha = 1 módulo fiscal
-vinte_ha_car<-readOGR(dsn="../DATA_USE",layer="CAR_20HA_1MOD")
+vinte_ha_car<-readOGR(dsn="../DATA_USE/CAR_UNION_EDIT",layer="CAR_20HA_1MOD")
 ```
 
 
