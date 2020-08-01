@@ -12,6 +12,8 @@ output:
     toc_float:
       collapsed: false
       smooth_scroll: false
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r, echo=FALSE}
@@ -35,17 +37,23 @@ install.packages(new.packages)
 ```
 
 ```{r, "executa os pacotes", message=FALSE, warning=FALSE, echo=FALSE}
+
 require(raster)
 require(rgdal)
 require(rgeos)
 require(sf)
 require(fields)
-require(dplyr)
+require(maptools)
+
+source("./R_functions/gExplode.r")
+source("./R_functions/gHoles.r")
+
+
 ```
 
 ```{r, "carrega os mapas", echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
-mapa_CAR<-readOGR(dsn="../DATA_USE",layer="TESTE_MAPA", use_iconv=TRUE, encoding="UTF-8")
-mapa_APP<-readOGR(dsn="../DATA_USE",layer="SP_3505005_APP", use_iconv=TRUE, encoding="UTF-8")
+mapa_CAR<-readOGR(dsn="./DATA_USE",layer="TESTE_MAPA")#, use_iconv=TRUE, encoding="UTF-8")
+mapa_APP<-readOGR(dsn="./DATA_USE",layer="SP_3505005_APP")#, use_iconv=TRUE, encoding="UTF-8")
 ```
 
 ```{r, "Não rodar"}
@@ -106,18 +114,22 @@ str(mapa_APP, max.level=2)
 
 #app_micro<-clip(mapa_APP,micro)
 
+proj4string(mapa_app_explode)
 
-gI <- gIntersects(mapa_APP, micro, byid = TRUE )
+gI <- gIntersects(mapa_app_explode, micro, byid = TRUE )
 
 vetor<-which(gI)
 
 a<-for (i in 1:(length(vetor))) {
-   out <- gIntersection(mapa_APP[vetor[i],], micro)
+     out <- gIntersection(mapa_APP[vetor[i],], micro)
 }
 
-str(mapa_APP, max.level=2)
+     keep <- sapply(out, class)
+     out <- out[keep == "SpatialPolygons"]
 
-mapa_APP@polygons[1]
+str(mapa_APP)
+
+mapa_APP@polygons[8]
 
   keep <- sapply(out, class)
   out <- out[keep == "SpatialPolygons"]
@@ -127,5 +139,39 @@ mapa_APP@polygons[1]
   clip.out.r <- SpatialPolygons( lapply( 1:length( out ) , function(i) { Pol <- slot(out[[i]], "polygons")[[1]];
   slot(Pol, "ID") <- as.character(i)
   Pol}))
+  
+  
+
+```
+
+```{r}
+proj4string(mapa_APP)
+proj4string(mapa_CAR)
+
+st_crs(mapa_APP)
+proj_crs<-CRS(SRS_string = "+init=epsg:31997")
+
+
+mapa_APP <- spTransform(mapa_APP, crs("+init=epsg:31997")) 
+mapa_CAR <- spTransform(mapa_CAR, crs("+init=epsg:31997"))
+
+
+
+mapa_APP<-gBuffer(mapa_APP, byid = TRUE, width = 0)
+mapa_app_explode<-gExplode(mapa_APP)
+mapa_app_holes<-gHoles(mapa_app_explode,)
+
+
+warnings()
+
+
+?readOG
+
+
+
+#x11()
+plot(mapa_APP)
+plot(mapa_APP[5,], border= "red", col="red", add=TRUE)
+axis(1)
 ```
 
