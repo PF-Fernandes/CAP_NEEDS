@@ -71,13 +71,31 @@ Com esse perdemos o data frame e ele se transforma em SpatialCollections
 plot(ALL)
 ```
 
-
-
+#### Resolvendo o problemas de sobreposição:
 ```{r}
-ALL4 <- gIntersection(CAPAO_car, RIBEI_car, byid = FALSE, id = NULL,  drop_lower_td = TRUE)
+ALL4 <- gIntersection(CAPAO_car, RIBEI_car, byid = TRUE,  drop_lower_td = TRUE)
 ```
 
+#### Usando um buffer para o Capão:
+```{r}
+CAPAO_car@data
+head(CAPAO_car@data)
+X1 <- gBuffer(CAPAO_car, byid=TRUE, width=0)
+```
+Alterar o georeferenciamento......
 
+
+#### Criação de buffer de 0 metros para corrigir imperfeições:
+```{r}
+buffer <- 
+  
+gStab2<- function(X, Y) {
+  X1 <- gBuffer(X, byid=TRUE, width=0)
+  Y2 <- gBuffer(Y, byid=TRUE, width=0)
+  stab <- gIntersection(gUnionCascaded(X1), gUnionCascaded(Y2), byid = TRUE)
+  stab<-stab@polyobj
+}
+```
 
 
 

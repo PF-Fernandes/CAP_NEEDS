@@ -46,30 +46,42 @@ plot(ALL_car)
 
 ### Agora plotaremos o mapa utilizando o número de módulos fiscais (NUM_MODULO)
 #### Primeiro tenhamos algo em mente quanto a classificação do imovel rural:
-##### - Pequena Propriedade - Imóvel rural de até 4 módulos fiscais;
-##### - Média Propriedade - Área superior a 4 e até 15 módulos fiscais;
-##### - Grande Propriedade - Área superior a 15 módulos fiscais.
+
+##### - Micro Propriedades - Menores que 1 módulo fiscal;
+##### - Pequena 1 - Imóvel rural maior que 1 e até 2 módulos fiscais;
+##### - Pequena 2 - Imóvel rural maior que 2 e até 4 módulos fiscais;
+##### - Média -     Imóvel rural maior que 4 e até 10 módulos fiscais;
+##### - Grande -    Imóvel rural superior a 10 módulos fiscais;
 
 ## Plotando:
 #### Plotando Todos os municipios do Sudoeste Paulista:
 ```{r,fig.align='center',fig.width=6,fig.height=6}
 plot(ALL_car, col = "transparent", border="transparent", main="Prodiedades rurais do Sudoeste Paulista")
 
-# Pequenas propriedades, apenas os n° módulos menores(<) ou iguais(==) 4
-peq_prop <- ALL_car@data$NUM_MODULO <= 4
-plot(ALL_car[peq_prop,], col = "dark green", border="transparent", add=TRUE)
+# Micro propriedades
+micro_prop <- ALL_car@data$NUM_MODULO < 1
+plot(ALL_car[micro_prop,], col = "dark green", border="transparent", add=TRUE)
 
-# Médias propriedades, apenas os n° maiores(>) que 4
-med_prop <- ALL_car@data$NUM_MODULO > 4
-# E (&) os n° módulos menores(<) e iguais(==) 15
-med_prop1 <- ALL_car@data$NUM_MODULO <= 15
-plot(ALL_car[med_prop&med_prop1,], col = "yellow", border="transparent", add=TRUE)
+# Pequenas propriedades 1
+peq1_prop1 <- ALL_car@data$NUM_MODULO >= 1 
+peq1_prop2 <- ALL_car@data$NUM_MODULO < 2
+plot(ALL_car[peq1_prop1&peq1_prop2,], col = "orange", border="transparent", add=TRUE)
 
-# Grandes propriedades, apenas os n° módulos maiores(>) que 15 
-gra_prop <- ALL_car@data$NUM_MODULO > 15
+# Pequenas propriedades 2
+peq2_prop1 <- ALL_car@data$NUM_MODULO >= 2 
+peq2_prop2 <- ALL_car@data$NUM_MODULO < 4
+plot(ALL_car[peq2_prop1&peq2_prop2,], col = "yellow", border="transparent", add=TRUE)
+
+# Médias propriedades
+med_prop <- ALL_car@data$NUM_MODULO >= 4
+med_prop1 <- ALL_car@data$NUM_MODULO < 10
+plot(ALL_car[med_prop&med_prop1,], col = "blue", border="transparent", add=TRUE)
+
+# Grandes propriedades 
+gra_prop <- ALL_car@data$NUM_MODULO >= 10
 plot(ALL_car[gra_prop,], col = "red", border="transparent", add=TRUE)
 
-legend("topright", c("Pequenas", "Médias", "Grandes"), fill=c("dark green", "yellow", "red"))
+legend("topright", c("Micro", "Pequenas 1", "Pequenas 2", "Médias", "Grandes"), fill=c("dark green", "orange", "yellow", "blue", "red"))
 axis(1)
 axis(2)
 ```
@@ -82,16 +94,33 @@ nrow(ALL_car)
 n_prop<- nrow(ALL_car)
 ```
 
-#### Quantidades de pequenas propriedades:
+#### Quantidades de Micro propriedades:
 ```{r}
-sum(peq_prop)
+sum(micro_prop)
 
 # Porcentagem
-n_p<- sum(peq_prop)
-(n_p/n_prop)*100 
+n_m<- sum(micro_prop)
+(n_m/n_prop)*100 
 ```
 
-#### Quantidade de imoveis de médias propriedades:
+#### Quantidade de imoveis de Pequenas 1 propriedades:
+```{r}
+sum(peq1_prop1&peq1_prop2)
+
+# Porcentagem
+n_p1<- sum(peq1_prop1&peq1_prop2)
+(n_p1/n_prop)*100 
+```
+
+#### Quantidade de imoveis de Pequenas 2 propriedades:
+```{r}
+sum(peq2_prop1&peq2_prop2)
+
+# Porcentagem
+n_p2<- sum(peq2_prop1&peq2_prop2)
+(n_p2/n_prop)*100 
+```
+#### Quantidade de imoveis de Médias propriedades:
 ```{r}
 sum(med_prop&med_prop1)
 
@@ -100,7 +129,7 @@ n_m<- sum(med_prop&med_prop1)
 (n_m/n_prop)*100 
 ```
 
-#### Quantidade de imoveis de grandes propriedades:
+#### Quantidade de imoveis de Grandes propriedades:
 ```{r}
 sum(gra_prop)
 
@@ -108,6 +137,11 @@ sum(gra_prop)
 n_g<- sum(gra_prop)
 (n_g/n_prop)*100 
 ```
+
+
+
+
+
 ## Quantidade total de área/hectares:
 ```{r}
 sum(ALL_car@data$NUM_AREA)
@@ -115,31 +149,49 @@ sum(ALL_car@data$NUM_AREA)
 ha<- sum(ALL_car@data$NUM_AREA)
 ```
 
-
-#### Quantidade total de área/hectares de pequenas propriedades:
+#### Quantidade total de área/hectares de micro propriedades:
 ```{r}
-41825.25+160246.8
+13161.77+40691.05
 
 # Porcentagem
-ha_p<- (41825.25+160246.8)
-(ha_p/ha)*100 
+ha_mi <- (13161.77+40691.05)
+(ha_mi/ha)*100 
 ```
+
+#### Quantidade total de área/hectares de pequenas propriedades 1:
+```{r}
+11885.25+52779.91
+
+# Porcentagem
+ha_p1<- (11885.25+52779.91)
+(ha_p1/ha)*100  
+```
+
+#### Quantidade total de área/hectares de pequenas propriedades 2:
+```{r}
+16778.23+66775.82
+
+# Porcentagem
+ha_p2<- (16778.23+66775.82)
+(ha_p2/ha)*100  
+```
+
 
 #### Quantidade total de área/hectares de medias propriedades:
 ```{r}
-38219.37+155817.3
+25640.73+106958.5
 
 # Porcentagem
-ha_m<- (38219.37+155817.3)
-(ha_m/ha)*100 
+ha_m<- (25640.73+106958.5)
+(ha_m/ha)*100  
 ```
 
 #### Quantidade total de área/hectares de grandes propriedades:
 ```{r}
-125299.4+364962
+137878+413820.8
 
 # Porcentagem
-ha_g<- (125299.4+364962)
+ha_g<- (137878+413820.8)
 (ha_g/ha)*100 
 ```
 
@@ -154,4 +206,16 @@ hist(ALL_car@data$NUM_AREA,breaks=25000,xlim = c(0,80), ylim = c(0,1000),
 ```
 
 
+```{r}
+Classes <- c('Micro','Pequena1', 'Pequena2', 'Média', 'Grande')
+Quantidade <- c(7324, 2363, 1560, 1117, 820)
+Hectares <- c(53.852, 64.665, 83.554, 132.599, 551.698)
+meu.df <- data.frame(Classes, Quantidade, Hectares)
+```
+
+```{r}
+barplot(Quantidade, names.arg=meu.df$Classes, main="Propriedades do Sudoeste Paulista", col=c(1,2,3,4,5), ylim = c(0,8000), ylab="N° de imóveis")
+
+barplot(Hectares, names.arg=meu.df$Classes, main="Propriedades do Sudoeste Paulista", col=c(1,2,3,4,5), ylab="Quantidade em hectares")
+```
 

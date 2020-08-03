@@ -45,22 +45,38 @@ sum(dezesseis_ha_car@data$NUM_AREA)
 ha<- sum(dezesseis_ha_car@data$NUM_AREA)
 ```
 
-#### Quantidade total de área/hectares de pequenas propriedades:
+#### Quantidade total de área/hectares de micro propriedades:
 ```{r}
-ha_peq_prop <- dezesseis_ha_car[dezesseis_ha_car@data$NUM_AREA <= 64.000000,]
-sum(ha_peq_prop@data$NUM_AREA)
+ha_micro_prop <- dezesseis_ha_car[dezesseis_ha_car@data$NUM_AREA < 16.000000,]
+sum(ha_micro_prop@data$NUM_AREA)
+```
+
+#### Quantidade total de área/hectares de pequenas propriedades 1:
+```{r}
+ha_peq1_prop1 <- dezesseis_ha_car@data$NUM_AREA >= 16.000000
+ha_peq2_prop1 <- dezesseis_ha_car@data$NUM_AREA <  32.000000
+ha_peq_prop1 <- dezesseis_ha_car[ha_peq1_prop1&ha_peq2_prop1,]
+sum(ha_peq_prop1@data$NUM_AREA) 
+```
+
+#### Quantidade total de área/hectares de pequenas propriedades 2:
+```{r}
+ha_peq1_prop2 <- dezesseis_ha_car@data$NUM_AREA >= 32.000000
+ha_peq2_prop2 <- dezesseis_ha_car@data$NUM_AREA <  64.000000
+ha_peq_prop2 <- dezesseis_ha_car[ha_peq1_prop2&ha_peq2_prop2,]
+sum(ha_peq_prop2@data$NUM_AREA) 
 ```
 
 #### Quantidade total de área/hectares de médias propriedades:
 ```{r}
-ha_med_prop <- dezesseis_ha_car@data$NUM_AREA > 64.000000
-ha_med1_prop<- dezesseis_ha_car@data$NUM_AREA <= 240.000000
+ha_med_prop <- dezesseis_ha_car@data$NUM_AREA >= 64.000000
+ha_med1_prop<- dezesseis_ha_car@data$NUM_AREA < 160.000000
 ha_med2_prop <- dezesseis_ha_car[ha_med_prop&ha_med1_prop,]
 sum(ha_med2_prop@data$NUM_AREA)
 ```
 
 #### Quantidade total de área/hectares de grandes propriedades:
 ```{r}
-ha_gra_prop <- dezesseis_ha_car[dezesseis_ha_car@data$NUM_AREA > 240.000000,]
-sum(ha_gra_prop@data$NUM_AREA)
+ha_gra_prop <- dezesseis_ha_car[dezesseis_ha_car@data$NUM_AREA > 160.000000,]
+sum(ha_gra_prop@data$NUM_AREA) 
 ```

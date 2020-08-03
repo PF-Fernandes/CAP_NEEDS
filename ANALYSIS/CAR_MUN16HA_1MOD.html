@@ -401,25 +401,41 @@ dezesseis_ha_car&lt;-readOGR(dsn=&quot;../DATA_USE/CAR_UNION_EDIT&quot;,layer=&q
 <pre><code>## [1] 205344</code></pre>
 <pre class="r"><code>ha&lt;- sum(dezesseis_ha_car@data$NUM_AREA)</code></pre>
 </div>
-<div id="quantidade-total-de-áreahectares-de-pequenas-propriedades" class="section level4">
-<h4>Quantidade total de área/hectares de pequenas propriedades:</h4>
-<pre class="r"><code>ha_peq_prop &lt;- dezesseis_ha_car[dezesseis_ha_car@data$NUM_AREA &lt;= 64.000000,]
-sum(ha_peq_prop@data$NUM_AREA)</code></pre>
-<pre><code>## [1] 41825.25</code></pre>
+<div id="quantidade-total-de-áreahectares-de-micro-propriedades" class="section level4">
+<h4>Quantidade total de área/hectares de micro propriedades:</h4>
+<pre class="r"><code>ha_micro_prop &lt;- dezesseis_ha_car[dezesseis_ha_car@data$NUM_AREA &lt; 16.000000,]
+sum(ha_micro_prop@data$NUM_AREA)</code></pre>
+<pre><code>## [1] 13161.77</code></pre>
+</div>
+<div id="quantidade-total-de-áreahectares-de-pequenas-propriedades-1" class="section level4">
+<h4>Quantidade total de área/hectares de pequenas propriedades 1:</h4>
+<pre class="r"><code>ha_peq1_prop1 &lt;- dezesseis_ha_car@data$NUM_AREA &gt;= 16.000000
+ha_peq2_prop1 &lt;- dezesseis_ha_car@data$NUM_AREA &lt;  32.000000
+ha_peq_prop1 &lt;- dezesseis_ha_car[ha_peq1_prop1&amp;ha_peq2_prop1,]
+sum(ha_peq_prop1@data$NUM_AREA) </code></pre>
+<pre><code>## [1] 11885.25</code></pre>
+</div>
+<div id="quantidade-total-de-áreahectares-de-pequenas-propriedades-2" class="section level4">
+<h4>Quantidade total de área/hectares de pequenas propriedades 2:</h4>
+<pre class="r"><code>ha_peq1_prop2 &lt;- dezesseis_ha_car@data$NUM_AREA &gt;= 32.000000
+ha_peq2_prop2 &lt;- dezesseis_ha_car@data$NUM_AREA &lt;  64.000000
+ha_peq_prop2 &lt;- dezesseis_ha_car[ha_peq1_prop2&amp;ha_peq2_prop2,]
+sum(ha_peq_prop2@data$NUM_AREA) </code></pre>
+<pre><code>## [1] 16778.23</code></pre>
 </div>
 <div id="quantidade-total-de-áreahectares-de-médias-propriedades" class="section level4">
 <h4>Quantidade total de área/hectares de médias propriedades:</h4>
-<pre class="r"><code>ha_med_prop &lt;- dezesseis_ha_car@data$NUM_AREA &gt; 64.000000
-ha_med1_prop&lt;- dezesseis_ha_car@data$NUM_AREA &lt;= 240.000000
+<pre class="r"><code>ha_med_prop &lt;- dezesseis_ha_car@data$NUM_AREA &gt;= 64.000000
+ha_med1_prop&lt;- dezesseis_ha_car@data$NUM_AREA &lt; 160.000000
 ha_med2_prop &lt;- dezesseis_ha_car[ha_med_prop&amp;ha_med1_prop,]
 sum(ha_med2_prop@data$NUM_AREA)</code></pre>
-<pre><code>## [1] 38219.37</code></pre>
+<pre><code>## [1] 25640.73</code></pre>
 </div>
 <div id="quantidade-total-de-áreahectares-de-grandes-propriedades" class="section level4">
 <h4>Quantidade total de área/hectares de grandes propriedades:</h4>
-<pre class="r"><code>ha_gra_prop &lt;- dezesseis_ha_car[dezesseis_ha_car@data$NUM_AREA &gt; 240.000000,]
-sum(ha_gra_prop@data$NUM_AREA)</code></pre>
-<pre><code>## [1] 125299.4</code></pre>
+<pre class="r"><code>ha_gra_prop &lt;- dezesseis_ha_car[dezesseis_ha_car@data$NUM_AREA &gt; 160.000000,]
+sum(ha_gra_prop@data$NUM_AREA) </code></pre>
+<pre><code>## [1] 137878</code></pre>
 </div>
 </div>
 
