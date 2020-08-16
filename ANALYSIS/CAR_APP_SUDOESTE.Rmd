@@ -43,61 +43,66 @@ require(rgdal)
 require(rgeos)
 require(sf)
 require(fields)
-require(maptools)
-
-source("./R_functions/gExplode.r")
-source("./R_functions/gHoles.r")
-
-
-```
-
-```{r, "carrega os mapas", echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
-mapa_CAR<-readOGR(dsn="./DATA_USE",layer="TESTE_MAPA")#, use_iconv=TRUE, encoding="UTF-8")
-mapa_APP<-readOGR(dsn="./DATA_USE",layer="SP_3505005_APP")#, use_iconv=TRUE, encoding="UTF-8")
-```
-
-```{r, "Não rodar"}
-explode<-function(sp){
-  sp_sf<-as(sp, "sf") #transforma em sf
-  sp_sf_cast = st_cast(sp_sf,"POLYGON") #explode 
-  #sp_explodido<-as(sp_sf_cast, "Spatial")
-}
-
-#Transforma os obj sp em sf
-mapa_car_sf<-explode(mapa_CAR)
-mapa_app_sf<-explode(mapa_APP)
-
-mapa_app_sf<-st_buffer(mapa_app_sf, 0)
-mapa_car_sf<-st_buffer(mapa_car_sf, 0)
-
-a<-st_intersection(mapa_car_sf, mapa_app_sf)
-a.col<-st_collection_extract(a, "POLYGON")
-
-a.col$area<-st_area(a.col)
-a.col$areaHa<-a.col$area/10000
-a.col.df<-a.col
-st_geometry(a.col.df)<-NULL
-
 
 ```
 
 ```{r}
-#clip<-function(area2clip, clippingArea){
-#
-#  gI <- gIntersects(area2clip, clippingArea, byid = TRUE )
-#  out <- lapply( which(gI) , function(x){ gIntersection( area2clip[x,] , clippingArea) } )
-#
-#  keep <- sapply(out, class)
-#  out <- out[keep == "SpatialPolygons"]
-#
-#
-# # Coerce list back to SpatialPolygons object
-#  clip.out.r <- SpatialPolygons( lapply( 1:length( out ) , function(i) { Pol <- slot(out[[i]], "polygons")[[1]];
-#  slot(Pol, "ID") <- as.character(i)
-#  Pol
-#  }))
+####Recorta e cria a área que precisa ser recuperada em micro propriedades
 
-#}
+calcRestauracao<-function(hidro, propSPDF, tBuff, usoSPDF){
+    
+  #Faz a intersecção dos objetos, pegando apenas a hidrografia dentro da categoria de propriedade
+    app_rest<-intersect(hidro, propSPDF)
+    
+  #Cria o buffer de acordo com o que é passado pelo tBuff
+    app_rest_b<-gBuffer(app_rest, byid=TRUE, width=tBuff)
+    
+  #Calcula a área do buffer criado e salva em uma nova coluna
+  #  app_rest_b$areaHA<-gArea(app_rest_b)/10000
+    
+  #Agora iremos fazer um intersect entre os buffers e o uso do solo do local, para verificar as areas consolidadas
+    usoSPDF<-gBuffer(usoSPDF, byid=TRUE, width=0)
+    app_cons<-intersect(usoSPDF, app_rest_b)
+
+    
+  
+    
+    return(app_cons)
+}
+```
+
+Objetivo: Verificar o quanto deve ser restaurado, segundo o presente na FBDS, das apps presenstes no sudoeste paulista, levando em consideração o tamanho das propriedades  presentes nos municipios.
+
+como: primeiro preciso ter o uso de solo (já recortado pela app (FBDS)?) e a hidrografia separado por tipo de propriedade, será então necessario recortar mais uma vez a hidrografia de acordo com o uso do solo, reitrando as areas que ja possuem vegetação nativa. Com a hidrografia sobresslaente aplicar o buffer com a area que deve ser recuperada em area consolidada.OU...
+
+recortar os dois pelo tipo de propriedade, criar o buffer do que precisaria ser recuperado em area consolidada e depois recortar as areas de vegetação nativa já existentes.
+
+```{r, "carrega os mapas", echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+
+######carrega os mapas necessários
+mapa_CAR<-readOGR(dsn="./DATA_USE/CAR/Barão_de_Antonina",layer="AREA_IMOVEL", use_iconv=TRUE, encoding="UTF-8")
+mapa_massa_dagua<-readOGR(dsn="./DATA_USE/FBDS_Hidrografia",layer="SP_3505005_MASSAS_DAGUA", use_iconv=TRUE, encoding="UTF-8")
+mapa_nascentes<-readOGR(dsn="./DATA_USE/FBDS_Hidrografia",layer="SP_3505005_NASCENTES", use_iconv=TRUE, encoding="UTF-8")
+mapa_rios_simples<-readOGR(dsn="./DATA_USE/FBDS_Hidrografia",layer="SP_3505005_RIOS_SIMPLES", use_iconv=TRUE, encoding="UTF-8")
+mapa_rios_duplos<-readOGR(dsn="./DATA_USE/FBDS_Hidrografia",layer="SP_3505005_RIOS_DUPLOS", use_iconv=TRUE, encoding="UTF-8")
+mapa_APP_USO_FBDS<-readOGR(dsn="./DATA_USE/FBDS_APP_USO_Municipios",layer="SP_3505005_APP_USO", use_iconv=TRUE, encoding="UTF-8")
+
+```
+
+```{r}
+  #reprojetar os obj para a mesma projeção (trocar para a mais adequada)
+    mapa_CAR<- spTransform(mapa_CAR, CRS("+init=epsg:31982"))
+    mapa_APP_USO_FBDS <- spTransform(mapa_APP_USO_FBDS, CRS("+init=epsg:31982"))
+    mapa_rios_duplos <- spTransform(mapa_rios_duplos, CRS("+init=epsg:31982"))
+    mapa_rios_simples <- spTransform(mapa_rios_simples, CRS("+init=epsg:31982"))
+    mapa_massa_dagua <- spTransform(mapa_massa_dagua, CRS("+init=epsg:31982"))
+    mapa_nascentes <- spTransform(mapa_nascentes, CRS("+init=epsg:31982"))
+    
+    ?gUnaryUnion
+```
+
+
+```{r}
 
 #Separa as propriedades por tamanhos
 micro<-mapa_CAR[mapa_CAR@data$NUM_MODULO<1,]
@@ -106,72 +111,83 @@ pequena_2_4<-mapa_CAR[mapa_CAR@data$NUM_MODULO>=2 & mapa_CAR@data$NUM_MODULO<4,]
 media<-mapa_CAR[mapa_CAR@data$NUM_MODULO>=4 & mapa_CAR@data$NUM_MODULO<10,]
 grande<-mapa_CAR[mapa_CAR@data$NUM_MODULO>=10,]
 
-class(micro)
-class(mapa_APP)
+```
 
-str(micro, max.level=2)
-str(mapa_APP, max.level=2)
-
-#app_micro<-clip(mapa_APP,micro)
-
-proj4string(mapa_app_explode)
-
-gI <- gIntersects(mapa_app_explode, micro, byid = TRUE )
-
-vetor<-which(gI)
-
-a<-for (i in 1:(length(vetor))) {
-     out <- gIntersection(mapa_APP[vetor[i],], micro)
-}
-
-     keep <- sapply(out, class)
-     out <- out[keep == "SpatialPolygons"]
-
-str(mapa_APP)
-
-mapa_APP@polygons[8]
-
-  keep <- sapply(out, class)
-  out <- out[keep == "SpatialPolygons"]
+```{r}
+#Seleciona as massas d'água maiores que 1ha
+mapa_massa_dagua<-mapa_massa_dagua[mapa_massa_dagua@data$AREA_HA > 1,]
+mapa_massa_dagua<-gBuffer(mapa_massa_dagua, byid=TRUE, width=0)
+```
 
 
-  # Coerce list back to SpatialPolygons object
-  clip.out.r <- SpatialPolygons( lapply( 1:length( out ) , function(i) { Pol <- slot(out[[i]], "polygons")[[1]];
-  slot(Pol, "ID") <- as.character(i)
-  Pol}))
-  
-  
+```{r}
+
+micro_app_nas<-calcRestauracao(mapa_nascentes, micro, 15, mapa_APP_USO_FBDS)
+
+micro_app_rms<-calcRestauracao(mapa_rios_simples, micro, 5, mapa_APP_USO_FBDS)
+
+micro_app_rmd<-calcRestauracao(mapa_rios_duplos, micro, 5, mapa_APP_USO_FBDS)
+
+micro_app_mda<-calcRestauracao(mapa_massa_dagua, micro, 5, mapa_APP_USO_FBDS)
 
 ```
 
 ```{r}
-proj4string(mapa_APP)
-proj4string(mapa_CAR)
+micro_app_nas<-micro_app_nas[micro_app_nas$CLASSE_USO!="formaÃ§Ã£o florestal"]
+micro_app_rms<-micro_app_rms[micro_app_rms$CLASSE_USO]
 
-st_crs(mapa_APP)
-proj_crs<-CRS(SRS_string = "+init=epsg:31997")
+micro_app_all<-gUnion(micro_app_nas, micro_app_rms, byid = TRUE)
+plot(micro_app_all)
 
-
-mapa_APP <- spTransform(mapa_APP, crs("+init=epsg:31997")) 
-mapa_CAR <- spTransform(mapa_CAR, crs("+init=epsg:31997"))
-
-
-
-mapa_APP<-gBuffer(mapa_APP, byid = TRUE, width = 0)
-mapa_app_explode<-gExplode(mapa_APP)
-mapa_app_holes<-gHoles(mapa_app_explode,)
-
-
-warnings()
-
-
-?readOG
-
-
-
-#x11()
-plot(mapa_APP)
-plot(mapa_APP[5,], border= "red", col="red", add=TRUE)
-axis(1)
+#somamos as areas de acordo com o uso do solo, as areas sem vegetação nativa será necessaria a restauração (alterar caso necessario)
+    sum_app_cons<-rowsum(app_cons$areaHA, group=app_cons$CLASSE_USO)
 ```
 
+
+```{r}
+
+pequeno12_app_nas<-calcRestauracao(mapa_nascentes, pequena_1_2, 15, mapa_APP_USO_FBDS)
+
+pequeno12_app_rms<-calcRestauracao(mapa_rios_simples, pequena_1_2, 8, mapa_APP_USO_FBDS)
+
+pequeno12_app_rmd<-calcRestauracao(mapa_rios_duplos, pequena_1_2, 8, mapa_APP_USO_FBDS)
+
+pequeno12_app_mda<-calcRestauracao(mapa_massa_dagua, pequena_1_2, 8, mapa_APP_USO_FBDS)
+
+```
+
+```{r}
+
+pequeno24_app_nas<-calcRestauracao(mapa_nascentes, pequena_2_4, 15, mapa_APP_USO_FBDS)
+
+pequeno24_app_rms<-calcRestauracao(mapa_rios_simples, pequena_2_4, 15, mapa_APP_USO_FBDS)
+
+pequeno24_app_rmd<-calcRestauracao(mapa_rios_duplos, pequena_2_4, 15, mapa_APP_USO_FBDS)
+
+pequeno24_app_mda<-calcRestauracao(mapa_massa_dagua, pequena_2_4, 15, mapa_APP_USO_FBDS)
+
+```
+
+```{r}
+
+media_app_nas<-calcRestauracao(mapa_nascentes, media, 15, mapa_APP_USO_FBDS)
+
+media_app_rms<-calcRestauracao(mapa_rios_simples, media, 20, mapa_APP_USO_FBDS)
+
+media_app_rmd<-calcRestauracao(mapa_rios_duplos, media, 30, mapa_APP_USO_FBDS)
+
+media_app_mda<-calcRestauracao(mapa_massa_dagua, media, 30, mapa_APP_USO_FBDS)
+
+```
+
+```{r}
+#areas sem propriedades declaradas
+area_sem_car_nas<-gDifference(mapa_nascentes, mapa_CAR)
+
+area_sem_car_rms<-gDifference(mapa_rios_simples, mapa_CAR)
+
+area_sem_car_rmd<-gDifference(mapa_rios_duplos, mapa_CAR)
+
+area_sem_car_mda<-gDifference(mapa_massa_dagua, mapa_CAR)
+
+```
