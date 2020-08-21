@@ -1,0 +1,218 @@
+---
+title: "Declividade"
+author: "PFFernandes"
+date: "04/08/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introdução:
+Nesse script buscamos usar a técnica de "Moving Window" para avaliação da declividade do Sudoeste Paulista em relação aos imóveis do Cadastro Ambiental Rural(CAR). Carregar, plotar e realizar algumas análises...
+
+Lembrando que utilizamos o shapefile editado sem os imoveis tidos como "cancelados por decisão administrativa".
+
+#### Comando para checar se existem os pacotes em seu PC e baixar caso não possua:
+```{r}
+list.of.packages <- c("raster", "sp", "rgdal", "dplyr", "XML", "curl", "rgeos", "sf", "fields","spatstat","maptools")
+
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) 
+
+install.packages(new.packages)
+```
+
+#### Comando para carregar os pacotes:
+```{r, message=FALSE, warning=FALSE}
+require(raster)
+require(sp)
+require(rgdal)
+require(dplyr)
+require(XML)
+require(curl)
+
+require(rgeos)
+require(sf)
+require(fields)
+
+require(spatstat)
+
+require(maptools)
+```
+
+#### Carregando os mapas em formato raster que utilizaremos:
+```{r}
+decliv <- raster("../DATA_USE/DECLIV/Declividade_sudeste.tif")
+```
+
+#### Legendas do mapa - Porcentagem de declividade de acordo com a EMBRAPA:
+##### - 1: 0 - 3 %
+##### - 2: 3 - 8 %
+##### - 3: 8 - 20 %
+##### - 4: 20 - 45 %
+##### - 5: 45 - 75 %
+##### - 6: > 75 %
+
+#### Criando as janelas voadoras (Moving Window):
+1 pixel = 30 metros.
+```{r}
+# Criando uma janela com 1 no centro e 5 nos lados (150 metros)
+m5<-matrix(1, nrow=5, ncol=5)
+
+# Criando uma janela com 1 no centro e 6 nos lados (210 metros)
+m7<-matrix(1, nrow=7, ncol=7)
+
+# Criando uma janela com 1 no centro e 10 nos lados (330 metros)
+m11<-matrix(1, nrow=11, ncol=11)
+
+# Criando uma janela com 1 no centro e 14 nos lados (450 metros)
+m15<-matrix(1, nrow=15, ncol=15)
+```
+
+#### Rodando o Moving Window (função focal = caixas que se mexem sobre a paisagem analisando) e aplicando ao raster de declividade:
+```{r, fig.align='center'}
+# Janela de 150m
+decliv.m5.focal<-focal(decliv, m5, fun=mean)
+
+# Janela de 210m
+decliv.m7.focal<-focal(decliv, m7, fun=mean)
+```
+
+```{r, fig.align='center'}
+# Janela de 330m
+decliv.m11.focal<-focal(decliv, m11, fun=mean)
+
+# Janela de 450m
+decliv.m15.focal<-focal(decliv, m15, fun=mean)
+```
+
+#### Plotando os mapas com o Moving Window:
+```{r, fig.align='center', fig.width=10}
+par(mfrow=c(1,2))
+
+plot(decliv.m5.focal, main="Sudoeste Paulista, 150m")
+plot(decliv.m7.focal, main="Sudoeste Paulista, 210m")
+```
+
+```{r, fig.align='center', fig.width=10}
+par(mfrow=c(1,2))
+
+plot(decliv.m11.focal, main="Sudoeste Paulista, 330m")
+plot(decliv.m15.focal, main="Sudoeste Paulista, 450m")
+```
+
+
+
+## Agora faremos alguns testes com o CAR:
+
+##### Carregando os mapas em formato shapefile que utilizaremos:
+```{r,warning=FALSE,message=FALSE,results='hide'}
+ALL_car<-readOGR(dsn="../DATA_USE/CAR_UNION_EDIT",layer="CAR_ALL_MUN")
+```
+
+#### Deixando na mesma projeção do raster:
+```{r}
+Obj1 <- spTransform(ALL_car, crs("+proj=utm +zone=22 +south +datum=WGS84 +units=m +no_defs"))
+```
+
+#### Separando as propriedades por tamanhos de módulos fiscais:
+```{r}
+micro_prop <- Obj1[Obj1@data$NUM_MODULO<1,]
+pequena_1_2 <- Obj1[Obj1@data$NUM_MODULO>=1 & Obj1@data$NUM_MODULO<2,]
+pequena_2_4 <- Obj1[Obj1@data$NUM_MODULO>=2 & Obj1@data$NUM_MODULO<4,]
+media <- Obj1[Obj1@data$NUM_MODULO>=4 & Obj1@data$NUM_MODULO<10,]
+grande <- Obj1[Obj1@data$NUM_MODULO>=10,]
+```
+
+#### Calcular as coordenadas dos centróides dos polígonos:
+```{r}
+micro_prop_ <- coordinates(obj=micro_prop)
+pequena_1_2_ <- coordinates(obj=pequena_1_2)
+pequena_2_4_ <- coordinates(obj=pequena_2_4)
+media_ <- coordinates(obj=media)
+grande_ <- coordinates(obj=grande)
+```
+
+
+#### Transformar as coordenadas para um objeto SpatialPoints e definir os atributos da projeção para serem os mesmos dos polígonos:
+```{r, message=FALSE, warning=FALSE}
+# Micro
+micro_prop_points <- SpatialPoints(coords=micro_prop_, 
+                                     proj4string=CRS( proj4string(micro_prop) ) )
+
+proj4string(micro_prop_points)
+
+
+# Media
+media_prop_points <- SpatialPoints(coords=media_, 
+                                     proj4string=CRS( proj4string(media) ) )
+
+proj4string(media_prop_points)
+
+# Grande
+grande_prop_points <- SpatialPoints(coords=grande_, 
+                                     proj4string=CRS( proj4string(grande) ) )
+
+proj4string(grande_prop_points)
+```
+
+#### Plotando as propriedades:
+```{r}
+plot(micro_prop, axes=TRUE, border="darkgrey", lty=1, lwd=1, col="white", 
+     main="Micro propriedades rurais do Sudoeste Paulista")
+
+points(micro_prop_points, pch=19, cex=0.5, col="black")
+
+plot(media, axes=TRUE, border="darkgrey", lty=1, lwd=1, col="white", 
+     main="Médias propriedades rurais do Sudoeste Paulista")
+
+points(media_prop_points, pch=19, cex=0.5, col="black")
+
+plot(grande, axes=TRUE, border="darkgrey", lty=1, lwd=1, col="white", 
+     main="Grandes propriedades rurais do Sudoeste Paulista")
+
+points(grande_prop_points, pch=19, cex=0.5, col="black")
+```
+
+#### Transformar sp em ppp:
+```{r}
+ppp.test1 <- as(micro_prop_points,"ppp")
+
+ppp.test1_unmark <- unmark(ppp.test1)
+plot(ppp.test1_unmark, axes=TRUE, border="transparent", main="Concentração de micro propriedades")
+
+ppp.test2 <- as(media_prop_points,"ppp")
+
+ppp.test2_unmark <- unmark(ppp.test2)
+plot(ppp.test2_unmark, axes=TRUE, border="transparent", main="Concentração de médias propriedades")
+
+ppp.test3 <- as(grande_prop_points,"ppp")
+
+ppp.test3_unmark <- unmark(ppp.test3)
+plot(ppp.test3_unmark, axes=TRUE, border="transparent", main="Concentração de grandes propriedades")
+```
+
+#### Mapas de Kernel:
+```{r}
+kernel <- density(ppp.test1_unmark, sigma = 1000)
+plot(kernel, axes=TRUE, main="Micro propriedades")
+
+kernel2 <- density(ppp.test2_unmark, sigma = 1000)
+plot(kernel2, axes=TRUE, main="Médias propriedades")
+
+kernel3 <- density(ppp.test3_unmark, sigma = 1000)
+plot(kernel3, axes=TRUE, main="Grandes propriedades")
+```
+
+
+
+
+
+
+
+
+
+
+

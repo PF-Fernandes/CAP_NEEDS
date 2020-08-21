@@ -1,0 +1,147 @@
+---
+title: "TestCARRaster"
+author: "PFFernandes"
+date: "20/08/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### Comando para checar se existem os pacotes em seu PC e baixar caso não possua:
+```{r}
+list.of.packages <- c("raster", "sp", "rgdal", "dplyr", "XML", "curl", "rgeos", "sf", "fields","spatstat","maptools")
+
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) 
+
+install.packages(new.packages)
+```
+
+#### Comando para carregar os pacotes:
+```{r, message=FALSE, warning=FALSE}
+require(raster)
+require(sp)
+require(rgdal)
+require(dplyr)
+require(XML)
+require(curl)
+
+require(rgeos)
+require(sf)
+require(fields)
+
+require(spatstat)
+
+require(maptools)
+```
+
+#### Carregando os mapas em formato raster que utilizaremos:
+```{r}
+decliv <- raster("../DATA_USE/DECLIV/Declividade_sudeste.tif")
+```
+
+#### Legendas do mapa - Porcentagem de declividade de acordo com a EMBRAPA:
+##### - 1: 0 - 3 %
+##### - 2: 3 - 8 %
+##### - 3: 8 - 20 %
+##### - 4: 20 - 45 %
+##### - 5: 45 - 75 %
+##### - 6: > 75 %
+
+#### Criando as janelas voadoras (Moving Window):
+1 pixel = 30 metros.
+```{r}
+# Criando uma janela com 1 no centro e 5 nos lados (150 metros)
+m5<-matrix(1, nrow=5, ncol=5)
+
+# Criando uma janela com 1 no centro e 6 nos lados (210 metros)
+m7<-matrix(1, nrow=7, ncol=7)
+
+# Criando uma janela com 1 no centro e 10 nos lados (330 metros)
+m11<-matrix(1, nrow=11, ncol=11)
+
+# Criando uma janela com 1 no centro e 14 nos lados (450 metros)
+m15<-matrix(1, nrow=15, ncol=15)
+```
+
+#### Rodando o Moving Window (função focal = caixas que se mexem sobre a paisagem analisando) e aplicando ao raster de declividade:
+```{r, fig.align='center'}
+# Janela de 150m
+decliv.m5.focal<-focal(decliv, m5, fun=mean)
+
+# Janela de 210m
+decliv.m7.focal<-focal(decliv, m7, fun=mean)
+```
+
+```{r, fig.align='center'}
+# Janela de 330m
+decliv.m11.focal<-focal(decliv, m11, fun=mean)
+
+# Janela de 450m
+decliv.m15.focal<-focal(decliv, m15, fun=mean)
+```
+
+#### Plotando os mapas com o Moving Window:
+```{r, fig.align='center', fig.width=10}
+par(mfrow=c(1,2))
+
+plot(decliv.m5.focal, main="Sudoeste Paulista, 150m")
+plot(decliv.m7.focal, main="Sudoeste Paulista, 210m")
+```
+
+```{r, fig.align='center', fig.width=10}
+par(mfrow=c(1,2))
+
+plot(decliv.m11.focal, main="Sudoeste Paulista, 330m")
+plot(decliv.m15.focal, main="Sudoeste Paulista, 450m")
+```
+
+
+
+
+## Agora faremos alguns testes com o CAR:
+
+##### Carregando o shapefile das propriedades do CAR:
+```{r}
+CAR_ALL_MUN <- readOGR(dsn="../DATA_USE/NO_RASTER",layer="CAR_ALL_MUN")
+```
+
+#### Transformar em raster:
+```{r}
+CAR_ALL_r <- rasterize(CAR_ALL_MUN, decliv, field = CAR_ALL_MUN$NUM_MODULO)
+```
+
+#### Reclassificar o raster:
+```{r}
+CAR_ALL_r[CAR_ALL_r < 1] <- 1
+
+CAR_ALL_r[CAR_ALL_r > 1 & CAR_ALL_r < 2] <- 2
+
+CAR_ALL_r[CAR_ALL_r > 2 & CAR_ALL_r < 4] <- 3
+
+CAR_ALL_r[CAR_ALL_r > 4 & CAR_ALL_r < 10] <- 4
+
+CAR_ALL_r[CAR_ALL_r > 10] <- 5
+```
+
+#### Criar paleta de cores:
+```{r}
+col_uso<-colorRampPalette(c("dark green", "orange", "yellow", "blue", "red"))
+col_uso(5)
+```
+
+#### Plotar:
+```{r}
+plot(CAR_ALL_r, legend = FALSE, main="Propriedades do Sudoeste Paulista",col=col_uso(5))
+legend("bottomleft", c("Micro", "1 a 2", "2 a 4", "4 a 10", "Grandes"), fill=c("dark green", "orange", "yellow", "blue", "red"))
+```
+
+#### Boxplot:
+```{r}
+boxplot(decliv, CAR_ALL_r, main="Declividade x Propriedades", xlab="Micro Propriedades", ylab="Declividade")
+```
+
+
+
