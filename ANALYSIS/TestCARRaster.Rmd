@@ -103,45 +103,31 @@ plot(decliv.m15.focal, main="Sudoeste Paulista, 450m")
 
 ## Agora faremos alguns testes com o CAR:
 
-##### Carregando o shapefile das propriedades do CAR:
-```{r}
-CAR_ALL_MUN <- readOGR(dsn="../DATA_USE/NO_RASTER",layer="CAR_ALL_MUN")
+
+
+
+#### Carregar os mapas do Sudoeste Paulista para o R:
+```{r,warning=FALSE,message=FALSE,results='hide'}
+micro_prop <-readOGR(dsn="../DATA_USE/NO_RASTER",layer="MenorQ1")
 ```
 
-#### Transformar em raster:
+
+
 ```{r}
-CAR_ALL_r <- rasterize(CAR_ALL_MUN, decliv, field = CAR_ALL_MUN$NUM_MODULO)
+v <- extract(decliv, micro_prop)
+unlist(lapply(v, function(x) if (!is.null(x)) mean(x, na.rm=TRUE) else NA ))
 ```
 
-#### Reclassificar o raster:
 ```{r}
-CAR_ALL_r[CAR_ALL_r < 1] <- 1
-
-CAR_ALL_r[CAR_ALL_r > 1 & CAR_ALL_r < 2] <- 2
-
-CAR_ALL_r[CAR_ALL_r > 2 & CAR_ALL_r < 4] <- 3
-
-CAR_ALL_r[CAR_ALL_r > 4 & CAR_ALL_r < 10] <- 4
-
-CAR_ALL_r[CAR_ALL_r > 10] <- 5
+X <- extract(decliv, micro_prop)
 ```
 
-#### Criar paleta de cores:
 ```{r}
-col_uso<-colorRampPalette(c("dark green", "orange", "yellow", "blue", "red"))
-col_uso(5)
+read.table(v)
 ```
 
-#### Plotar:
-```{r}
-plot(CAR_ALL_r, legend = FALSE, main="Propriedades do Sudoeste Paulista",col=col_uso(5))
-legend("bottomleft", c("Micro", "1 a 2", "2 a 4", "4 a 10", "Grandes"), fill=c("dark green", "orange", "yellow", "blue", "red"))
-```
 
-#### Boxplot:
-```{r}
-boxplot(decliv, CAR_ALL_r, main="Declividade x Propriedades", xlab="Micro Propriedades", ylab="Declividade")
-```
+
 
 
 

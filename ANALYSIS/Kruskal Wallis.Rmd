@@ -1,0 +1,119 @@
+---
+title: "Kruskal Wallis"
+author: "PFFernandes"
+date: "31/08/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+list.of.packages <- c("rstatix", "ggplot2", "dplyr")
+
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) 
+
+install.packages(new.packages)
+```
+
+```{r, message=FALSE, warning=FALSE}
+require(rstatix)
+require(ggplot2)
+require(dplyr)
+```
+
+
+
+
+## Declividade
+
+#### Carregamento do arquivo csv:
+```{r}
+dados <- read.csv('../DATA_USE/Dados.csv', sep = ';', dec = ',') 
+View(dados)                                       
+glimpse(dados) 
+```
+
+#### Transformar em factor:
+```{r}
+dados$Prop <-as.factor(dados$Prop)
+```
+
+#### Verificar:
+```{r}
+levels(dados$Prop)
+```
+
+#### Realizar o teste de Kruskal Wallis:
+```{r}
+kruskal.1 <- kruskal.test(Valores ~ Prop, data = dados)
+kruskal.1
+summary(kruskal.1)
+```
+##### chi-squared = 0.11613, df = 4, p-value = 0.9512
+##### hipotese nula = a mediana das prop são iguais 
+valor de p maior que 0,05 = aceito a hipotese nula
+
+#### Realizar o teste de Anova:
+```{r}
+anova.1 <- aov(Valores ~ Prop, data= dados)
+anova.1
+summary(anova.1)
+```
+
+
+
+
+## Geomorfologia:
+
+#### Carregamento do arquivo csv:
+```{r}
+dados2 <- read.csv('../DATA_USE/Dados2.csv', sep = ';', dec = ',') 
+View(dados2)                                       
+glimpse(dados2)
+```
+
+#### Transformar em factor:
+```{r}
+dados2$Prop2 <-as.factor(dados2$Prop2)
+```
+
+#### Verificar:
+```{r}
+levels(dados2$Prop2)
+```
+
+#### Realizar o teste de Kruskal Wallis:
+```{r}
+kruskal.2 <- kruskal.test(Valores2 ~ Prop2, data = dados2)
+kruskal.2
+summary(kruskal.2)
+```
+
+#### Realizar o teste de Anova:
+```{r}
+anova.2 <- aov(Valores2 ~ Prop2, data= dados2)
+anova.2
+summary(anova.2)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
