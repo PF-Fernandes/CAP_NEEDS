@@ -28,7 +28,7 @@ knitr::knit_hooks$set(inline = inline_hook)
 
 
 ```{r, "instala os pacotes", echo=FALSE}
-list.of.packages <- c("rgdal", "sf", "raster", "rgeos", "fields")
+list.of.packages <- c("rgdal", "raster", "rgeos", "fields")
 
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) 
@@ -41,13 +41,23 @@ install.packages(new.packages)
 require(raster)
 require(rgdal)
 require(rgeos)
-require(sf)
 require(fields)
 
 ```
 
 ```{r, echo=FALSE}
 ####Recorta e cria a área que precisa ser recuperada em micro propriedades
+
+makeUniform<-function(SPDF){
+  pref<-substitute(SPDF)  #just putting the file name in front.
+  newSPDF<-spChFIDs(SPDF,as.character(paste(pref,rownames(as(SPDF,"data.frame")),sep="_")))
+  return(newSPDF)
+}
+makeUniformID<-function(SPDF){
+  pref<-substitute(SPDF)  #just putting the file name in front.
+  newSPDF<-spChFIDs(SPDF,as.character(paste(pref,sapply(slot(SPDF, "polygons"), function(x) slot(x, "ID")),sep="_")))
+  return(newSPDF)
+}
 
 #dissolve os poligonos intersectados
 mergePoli<-function(buff){
@@ -90,13 +100,14 @@ areaVegetacao<-function(a.veg){
 ```{r, "carrega os mapas", echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
 
 ######carrega os mapas necessários
-mapa_CAR<-readOGR(dsn="./DATA_USE/group_analysis",layer="GI_map_CAR", use_iconv=TRUE, encoding="UTF-8")
-mapa_MDA<-readOGR(dsn="./DATA_USE/group_analysis",layer="GI_map_mda", use_iconv=TRUE, encoding="UTF-8")
-mapa_NAS<-readOGR(dsn="./DATA_USE/group_analysis",layer="GI_map_nas", use_iconv=TRUE, encoding="UTF-8")
-mapa_RMS<-readOGR(dsn="./DATA_USE/group_analysis",layer="GI_map_rms", use_iconv=TRUE, encoding="UTF-8")
-mapa_RMD<-readOGR(dsn="./DATA_USE/group_analysis",layer="GI_map_rmd", use_iconv=TRUE, encoding="UTF-8")
-mapa_USO<-readOGR(dsn="./DATA_USE/group_analysis",layer="GI_map_uso", use_iconv=TRUE, encoding="UTF-8")
+mapa_CAR<-readOGR(dsn="./DATA_USE/CAR/Capão_Bonito",layer="AREA_IMOVEL", use_iconv=TRUE, encoding="UTF-8")
+mapa_MDA<-readOGR(dsn="./DATA_USE/FBDS_Hidrografia",layer="SP_3510203_MASSAS_DAGUA", use_iconv=TRUE, encoding="UTF-8")
+mapa_NAS<-readOGR(dsn="./DATA_USE/FBDS_Hidrografia",layer="SP_3510203_NASCENTES", use_iconv=TRUE, encoding="UTF-8")
+mapa_RMS<-readOGR(dsn="./DATA_USE/FBDS_Hidrografia",layer="SP_3510203_RIOS_SIMPLES", use_iconv=TRUE, encoding="UTF-8")
+mapa_RMD<-readOGR(dsn="./DATA_USE/FBDS_Hidrografia",layer="SP_3510203_RIOS_DUPLOS", use_iconv=TRUE, encoding="UTF-8")
+mapa_USO<-readOGR(dsn="./DATA_USE/FBDS_APP_USO_Municipios",layer="SP_3510203_USO", use_iconv=TRUE, encoding="UTF-8")
 mapa_GEO<-readOGR(dsn="./DATA_USE",layer="Geomorf_sudoeste", use_iconv=TRUE, encoding="UTF-8")
+mapa_MUN<-readOGR(dsn="./DATA_USE/LIMITE_MUN_JUNTOS",layer="ALL_MUN", use_iconv=TRUE, encoding="UTF-8")
 
 ```
 
@@ -109,18 +120,19 @@ mapa_GEO<-readOGR(dsn="./DATA_USE",layer="Geomorf_sudoeste", use_iconv=TRUE, enc
     mapa_MDA <- spTransform(mapa_MDA, CRS("+init=epsg:31982"))
     mapa_NAS <- spTransform(mapa_NAS, CRS("+init=epsg:31982"))
     mapa_GEO <- spTransform(mapa_GEO, CRS("+init=epsg:31982"))
-
+    mapa_MUN <- spTransform(mapa_MUN, CRS("+init=epsg:31982"))
 ```
 
 ```{r, echo=FALSE}
 
 #Separa as propriedades por tamanhos
+mapa_CAR<-gBuffer(mapa_CAR, byid=TRUE, width=0)
+
 micro<-mapa_CAR[mapa_CAR@data$NUM_MODULO<1,]
 pequena_1_2<-mapa_CAR[mapa_CAR@data$NUM_MODULO>=1 & mapa_CAR@data$NUM_MODULO<2,]
 pequena_2_4<-mapa_CAR[mapa_CAR@data$NUM_MODULO>=2 & mapa_CAR@data$NUM_MODULO<4,]
 media<-mapa_CAR[mapa_CAR@data$NUM_MODULO>=4 & mapa_CAR@data$NUM_MODULO<10,]
 grande<-mapa_CAR[mapa_CAR@data$NUM_MODULO>=10,]
-
 ```
 
 ```{r, echo=FALSE,}
@@ -132,40 +144,71 @@ mapa_USO<-gBuffer(mapa_USO, byid=TRUE, width=0)
 
 #Nascente é 15m de app para todas as propriedades
 nas_b<-gBuffer(mapa_NAS, byid=TRUE, width = 15)
+#gArea(nas_b)/10000
+#rms<-gBuffer(mapa_RMS, byid=TRUE, width=5)
+#gArea(rms)/10000
+#rmd<-gBuffer(mapa_RMD, byid=TRUE, width=5)
+#gArea(rmd)/10000
+#mda<-gBuffer(mapa_MDA, byid=TRUE, width=5)
+#mda_i<-gDifference(mda, mapa_MDA)
+#plot(mda_i, col="red")
+#gArea(mda_i)/10000
 
+#(gArea(nas_b)/10000)+(gArea(rms)/10000)+(gArea(rmd)/10000)+(gArea(mda_i)/10000)
 #juntando todas as hidrografias
-
-mapa_hidro<-gUnion(mapa_MDA, mapa_RMD)
-mapa_hidro<-gUnion(mapa_hidro, mapa_RMS)
-
-
+mapa_hidro_pol<-gUnion(mapa_MDA, mapa_RMD)
+mapa_hidro<-gUnion(mapa_hidro_pol, mapa_RMS)
 ```
 
-```{r, "Buffer micro", echo=FALSE}
+```{r, echo=FALSE}
 micro_app_original<-gBuffer(mapa_hidro, byid=TRUE, width=5)
 micro_app_original<-gUnion(micro_app_original, nas_b)
-micro_app<-gIntersection(micro_app_original, micro)
-micro_app<-intersect(mapa_USO, micro_app)
+micro_app_original<-gDifference(micro_app_original, mapa_hidro_pol)
 
+pequeno12_app_original<-gBuffer(mapa_hidro, byid=TRUE, width=8)
+pequeno12_app_original<-gUnion(pequeno12_app_original, nas_b)
+pequeno12_app_original<-gDifference(pequeno12_app_original, mapa_hidro_pol)
+
+pequeno24_app_original<-gBuffer(mapa_hidro, byid=TRUE, width=15)
+pequeno24_app_original<-gUnion(pequeno24_app_original, nas_b)
+pequeno24_app_original<-gDifference(pequeno24_app_original, mapa_hidro_pol)
+
+#Buffer para tamanho "médio" é diferente entre rios e massa d'água
+media_mda_rmd<-gBuffer(mapa_hidro_pol, byid=TRUE, width=30)
+media_rios<-gBuffer(mapa_RMS, byid=TRUE, width=20)
+media_app_original<-gUnion(media_mda_rmd, media_rios)
+media_app_original<-gUnion(media_app_original, nas_b)
+media_app_original<-gDifference(media_app_original, mapa_hidro_pol)
+
+grande_app_original<-gBuffer(mapa_hidro, byid=TRUE, width=30)
+grande_app_original<-gUnion(grande_app_original, nas_b)
+grande_app_original<-gDifference(grande_app_original, mapa_hidro_pol)
+
+
+plot(media_app_original)
+```
+
+
+```{r, "Buffer micro", echo=FALSE}
+micro_app<-gIntersection(micro_app_original, micro)
+micro_app<-gBuffer(micro_app, byid=TRUE, width=0)
+#micro_app<-micro_app@polyobj
+micro_app<-intersect(mapa_USO, micro_app)
 micro_app<-micro_app[micro_app@data$CLASSE_USO!="água",]
 
 #aplica a função que dissolve os poligonos que estejam com intersecções dentro da app 
 micro_app_compl<-mergePoli(micro_app)
+
 #soma a área dos polígonos retornados pela resultado da função 
 micro_app_compl_area<-gArea(micro_app_compl)/10000
-
 micro_restaurar_area<-areaRestaurar(micro_app)
 micro_vegetacao_area<-areaVegetacao(micro_app)
-
 ```
 
 ```{r, "Buffer pequena 1_2", echo=FALSE}
-
-pequeno12_app_original<-gBuffer(mapa_hidro, byid=TRUE, width=8)
-pequeno12_app_original<-gUnion(pequeno12_app_original, nas_b)
 pequeno12_app<-gIntersection(pequeno12_app_original, pequena_1_2)
+pequeno12_app<-gBuffer(pequeno12_app, byid=TRUE, width=0)
 pequeno12_app<-intersect(mapa_USO, pequeno12_app)
-
 pequeno12_app<-pequeno12_app[pequeno12_app@data$CLASSE_USO!="água"]
 
 #aplica a função que dissolve os poligonos que estejam com intersecções dentro da app 
@@ -175,15 +218,12 @@ pequeno12_app_compl_area<-gArea(pequeno12_app_compl)/10000
 
 pequeno12_restaurar_area<-areaRestaurar(pequeno12_app)
 pequeno12_vegetacao_area<-areaVegetacao(pequeno12_app)
-
 ```
 
 ```{r, "Buffer pequena 2_4", echo=FALSE}
-pequeno24_app_original<-gBuffer(mapa_hidro, byid=TRUE, width=15)
-pequeno24_app_original<-gUnion(pequeno24_app_original, nas_b)
 pequeno24_app<-gIntersection(pequeno24_app_original, pequena_2_4)
+pequeno24_app<-gBuffer(pequeno24_app, byid=TRUE, width=0)
 pequeno24_app<-intersect(mapa_USO, pequeno24_app)
-
 pequeno24_app<-pequeno24_app[pequeno24_app@data$CLASSE_USO!="água",]
 
 #aplica a função que dissolve os poligonos que estejam com intersecções dentro da app 
@@ -196,40 +236,33 @@ pequeno24_app_compl_area<-gArea(pequeno24_app_compl)/10000
 ```
 
 ```{r, "Buffer média", echo=FALSE}
-
-#Buffer para tamanho "médio" é diferente entre rios e massa d'água
-media_mda<-gBuffer(mapa_MDA, byid=TRUE, width=30)
-media_rios<-gUnion(mapa_RMS, mapa_RMD)
-media_rios<-gBuffer(media_rios, byid=TRUE, width=20)
-media_app_original<-gUnion(media_mda, media_rios)
-media_app_original<-gUnion(media_app_original, nas_b)
 media_app<-gIntersection(media_app_original, media)
+media_app<-gBuffer(media_app, byid=TRUE, width=0)
 media_app<-intersect(mapa_USO, media_app)
-
 media_app<-media_app[media_app@data$CLASSE_USO!="água",]
 
 #aplica a função que dissolve os poligonos que estejam com intersecções dentro da app 
 media_app_compl<-mergePoli(media_app)
+
 #soma a área dos polígonos retornados pela resultado da função 
 media_app_compl_area<-gArea(media_app_compl)/10000
-
 media_restaurar_area<-areaRestaurar(media_app)
 media_vegetacao_area<-areaVegetacao(media_app)
 ```
 
 ```{r, "Buffer grande", echo=FALSE}
-grande_app_original<-gBuffer(mapa_hidro, byid=TRUE, width=30)
-grande_app_original<-gUnion(grande_app_original, nas_b)
 grande_app<-gIntersection(grande_app_original, grande)
+grande_app<-gBuffer(grande_app, byid=TRUE, width=0)
+grande_app_t<-gMakeValid(grande_app)
 grande_app<-intersect(mapa_USO, grande_app)
-
 grande_app<-grande_app[grande_app@data$CLASSE_USO!="água",]
-
 #aplica a função que dissolve os poligonos que estejam com intersecções dentro da app 
+grande_app<-makeUniform(grande_app)
 grande_app_compl<-mergePoli(grande_app)
 #soma a área dos polígonos retornados pela resultado da função 
 grande_app_compl_area<-gArea(grande_app_compl)/10000
-
+plot(grande_app)
+plot(grande)
 grande_restaurar_area<-areaRestaurar(grande_app)
 grande_vegetacao_area<-areaVegetacao(grande_app)
 ```
@@ -237,24 +270,21 @@ grande_vegetacao_area<-areaVegetacao(grande_app)
 ```{r, "Cenário 1", echo=FALSE}
 #cenario 1: o que existe no car
 
-soma_cenario_1_app<-micro_app_compl_area+pequeno24_app_compl_area+pequeno12_app_compl_area+
-                    media_app_compl_area+grande_app_compl_area
+soma_cenario_1_app<-micro_app_compl_area+pequeno24_app_compl_area+pequeno12_app_compl_area+grande_app_compl_area+media_app_compl_area
 
-soma_cenario_1_veg<-micro_vegetacao_area+pequeno12_vegetacao_area+pequeno24_vegetacao_area+
-                    media_vegetacao_area+grande_vegetacao_area
+soma_cenario_1_veg<-micro_vegetacao_area+pequeno12_vegetacao_area+pequeno24_vegetacao_area+grande_vegetacao_area+media_vegetacao_area
 
-soma_cenario_1_res<-micro_restaurar_area+pequeno24_restaurar_area+pequeno12_restaurar_area+
-                    media_restaurar_area+grande_restaurar_area
-
+soma_cenario_1_res<-micro_restaurar_area+pequeno24_restaurar_area+pequeno12_restaurar_area+grande_restaurar_area+media_restaurar_area
 ```
 
 ```{r, "Cenário 2", echo=FALSE}
 #Cenario 2: Todas as áreas sem CAR consideradas micro
+
 out_allmicro<-gDifference(micro_app_original, mapa_CAR)
+out_allmicro<-gBuffer(out_allmicro, byid=TRUE, width=0)
 out_allmicro<-intersect(mapa_USO, out_allmicro)
-
 out_allmicro<-out_allmicro[out_allmicro@data$CLASSE_USO!="água",]
-
+out_allmicro<-makeUniform(out_allmicro)
 out_allmicro_compl<-mergePoli(out_allmicro)
 out_allmicro_app_compl_area<-gArea(out_allmicro_compl)/10000
 
@@ -271,10 +301,11 @@ soma_cenario_2_res<-soma_cenario_1_res+out_allmicro_restaurar_area
 #Cenario 3: Todas as áreas sem CAR consideradas grande
 
 out_allbig<-gDifference(grande_app_original, mapa_CAR)
+out_allbig<-gBuffer(out_allbig, byid=TRUE, width=0)
 out_allbig<-intersect(mapa_USO, out_allbig)
 
 out_allbig<-out_allbig[out_allbig@data$CLASSE_USO!="água",]
-
+out_allbig<-makeUniform(out_allbig)
 out_allbig_compl<-mergePoli(out_allbig)
 out_allbig_app_compl_area<-gArea(out_allbig_compl)/10000
 
@@ -290,121 +321,149 @@ soma_cenario_3_res<-soma_cenario_1_res+out_allbig_restaurar_area
 ```{r, "Cenário 4", echo=FALSE}
 #Cenario 4: áreas em branco separadas pela geomorfologia (planalto e depressão) e calculado de acordo com a proporção de propriedades nestas situações.
 
-
+#separa planalto e depressão
 geo_planalto<- mapa_GEO[mapa_GEO@data$NIVEL_2 == "planaltos" | 
                  mapa_GEO@data$NIVEL_2 == "planalto centro ocidental indiferenciado",]
 geo_depressao<-mapa_GEO[mapa_GEO@data$NIVEL_2 == "depressao indiferenciada",]
 
 
-#separando micro do total de buffer=5 a restaurar, feito no cenario 2
 
-app_uso_pla<-intersect(out_allmicro, geo_planalto)
-app_uso_dep<-intersect(out_allmicro, geo_depressao)
-
-pla_restaurar_area<-areaRestaurar(app_uso_pla)
-dep_restaurar_area<-areaRestaurar(app_uso_dep)
-
-out_micro_pla<-pla_restaurar_area*0.0888
-out_micro_dep<-dep_restaurar_area*0.0365
-
-#separando pequena_1_2 do total de buffer=8, subtraindo da anterior
-
+#separando pequena_1_2 do total de buffer=8
 app_uso_b08<-gDifference(pequeno12_app_original, mapa_CAR)
+app_uso_b08<-gBuffer(app_uso_b08, byid=TRUE, width=0)
 app_uso_b08<-intersect(mapa_USO, app_uso_b08)
+app_uso_b08<-app_uso_b08[app_uso_b08@data$CLASSE_USO != "água",]
+app_uso_b08<-makeUniform(app_uso_b08)
 
-app_uso_b08<-app_uso_b08[app_uso_b08@data$CLASSE_USO != "água"]
-
-app8_uso_pla<-intersect(app_uso_b08, geo_planalto)
-app8_uso_dep<-intersect(app_uso_b08, geo_depressao)
-
-pla8_restaurar_area<-areaRestaurar(app8_uso_pla)
-pla8_restaurar_area<-pla8_restaurar_area - out_micro_pla
-dep8_restaurar_area<-areaRestaurar(app8_uso_dep)
-dep8_restaurar_area<-dep8_restaurar_area - out_micro_dep
-
-out_p12_pla<-pla8_restaurar_area*0.098
-out_p12_dep<-dep8_restaurar_area*0.0514
-
-out_all_pla<-out_micro_pla+out_p12_pla
-out_all_dep<-out_p12_dep+out_micro_dep
-
-#separando pequena_2_4 do total de buffer=15, subtraindo a proporção anterior
-
+#separando pequena_2_4 do total de buffer=15
 app_uso_b15<-gDifference(pequeno24_app_original, mapa_CAR)
+app_uso_b15<-gBuffer(app_uso_b15, byid=TRUE, width=0)
 app_uso_b15<-intersect(mapa_USO, app_uso_b15)
+app_uso_15<-app_uso_b15[app_uso_b15@data$CLASSE_USO != "água",]
+app_uso_15<-makeUniform(app_uso_15)
 
-app_uso_15<-app_uso_b15[app_uso_b15@data$CLASSE_USO != "água"]
-
-
-app15_uso_pla<-intersect(app_uso_15, geo_planalto)
-app15_uso_dep<-intersect(app_uso_15, geo_depressao)
-
-pla15_restaurar_area<-areaRestaurar(app15_uso_pla)
-pla15_restaurar_area<-pla15_restaurar_area - out_all_pla
-dep15_restaurar_area<-areaRestaurar(app15_uso_dep)
-dep15_restaurar_area<-dep15_restaurar_area - out_all_dep
-
-out_p24_pla<-pla15_restaurar_area*0.1146
-out_p24_dep<-dep15_restaurar_area*0.0752
-
-out_all_pla<-out_all_pla+out_p24_pla
-out_all_dep<-out_p24_dep+out_all_dep
-
-#separando média do total, subtraindo a proporção anterior
-
+#separando média do total
 app_uso_b20<-gDifference(media_app_original, mapa_CAR)
+app_uso_b20<-gBuffer(app_uso_b20, byid=TRUE, width=0)
 app_uso_b20<-intersect(mapa_USO, app_uso_b20)
+app_uso_20<-app_uso_b20[app_uso_b20@data$CLASSE_USO != "água",]
+app_uso_20<-makeUniform(app_uso_20)
 
-app_uso_20<-app_uso_b20[app_uso_b20@data$CLASSE_USO != "água"]
+#verifica se existe área de planalto e depressão no municipio
+mapa_MUN<-mapa_MUN[mapa_MUN@data$NM_MUN=="Cap0o Bonito",]
+mun_pla<-gIntersects(geo_planalto, mapa_MUN)
+mun_dep<-gIntersects(geo_depressao,mapa_MUN)
 
+#setando as variaveis para que não exista erro no knit
+out_micro_pla<-"NA"
+out_micro_dep<-"NA"
+out_p12_pla<-"NA"
+out_p12_dep<-"NA"
+out_p24_pla<-"NA"
+out_p24_dep<-"NA"
+out_med_pla<-"NA"
+out_med_dep<-"NA"
+out_grande_pla<-"NA"
+out_grande_dep<-"NA"
 
-app20_uso_pla<-intersect(app_uso_b20, geo_planalto)
-app20_uso_dep<-intersect(app_uso_b20, geo_depressao)
+```
 
-pla20_restaurar_area<-areaRestaurar(app20_uso_pla)
-pla20_restaurar_area<-pla20_restaurar_area - out_all_pla
-dep20_restaurar_area<-areaRestaurar(app20_uso_dep)
-dep20_restaurar_area<-dep20_restaurar_area - out_all_dep
+```{r,"Cenário 4-Planalto", echo=FALSE}
+if(mun_pla==TRUE){
+  #separando micro do total de buffer=5 a restaurar, feito no cenario 2
+  app_uso_pla<-intersect(out_allmicro, geo_planalto)
+  pla_restaurar_area<-areaRestaurar(app_uso_pla)
+  out_micro_pla<-pla_restaurar_area*0.0888
+  
+  #separando pequena_1_2 do total de buffer=8, subtraindo da anterior
+  app8_uso_pla<-intersect(app_uso_b08, geo_planalto)
+  pla8_restaurar_area<-areaRestaurar(app8_uso_pla)
+  pla8_restaurar_area<-pla8_restaurar_area - out_micro_pla
+  out_p12_pla<-pla8_restaurar_area*0.098
+  out_all_pla<-out_micro_pla+out_p12_pla
 
-out_med_pla<-pla20_restaurar_area*0.1436
-out_med_dep<-dep20_restaurar_area*0.1426
+  #separando pequena_2_4 do total de buffer=15, subtraindo a proporção anterior
+  app15_uso_pla<-intersect(app_uso_15, geo_planalto)
+  pla15_restaurar_area<-areaRestaurar(app15_uso_pla)
+  pla15_restaurar_area<-pla15_restaurar_area - out_all_pla
+  out_p24_pla<-pla15_restaurar_area*0.1146
+  out_all_pla<-out_all_pla+out_p24_pla
 
-out_all_pla<-out_all_pla+out_med_pla
-out_all_dep<-out_med_dep+out_all_dep
+  #separando média do total, subtraindo a proporção anterior
+  app20_uso_pla<-intersect(app_uso_b20, geo_planalto)
+  pla20_restaurar_area<-areaRestaurar(app20_uso_pla)
+  pla20_restaurar_area<-pla20_restaurar_area - out_all_pla
+  out_med_pla<-pla20_restaurar_area*0.1436
+  out_all_pla<-out_all_pla+out_med_pla
 
-#por fim, as grandes
+  #por fim, as grandes
+  app30_uso_pla<-intersect(out_allbig, geo_planalto)
+  pla30_restaurar_area<-areaRestaurar(app30_uso_pla)
+  pla30_restaurar_area<-pla30_restaurar_area - out_all_pla
+  out_grande_pla<-pla30_restaurar_area*0.555
+  out_all_pla<-out_all_pla+out_grande_pla
+}else{
+  out_all_pla<-0.001
+}
+```
 
-app30_uso_pla<-intersect(out_allbig, geo_planalto)
-app30_uso_dep<-intersect(out_allbig, geo_depressao)
+```{r, "Cenário 4-Depressão", echo=FALSE}
+if(mun_dep==TRUE){
+  #separando micro do total de buffer=5 a restaurar, feito no cenario 2
+  app_uso_dep<-intersect(out_allmicro, geo_depressao)
+  dep_restaurar_area<-areaRestaurar(app_uso_dep)
+  out_micro_dep<-dep_restaurar_area*0.0365
 
-pla30_restaurar_area<-areaRestaurar(app30_uso_pla)
-pla30_restaurar_area<-pla30_restaurar_area - out_all_pla
-dep30_restaurar_area<-areaRestaurar(app30_uso_dep)
-dep30_restaurar_area<-dep30_restaurar_area - out_all_dep
+  #separando pequena_1_2 do total de buffer=8, subtraindo da anterior
+  app8_uso_dep<-intersect(app_uso_b08, geo_depressao)
+  dep8_restaurar_area<-areaRestaurar(app8_uso_dep)
+  dep8_restaurar_area<-dep8_restaurar_area - out_micro_dep
+  out_p12_dep<-dep8_restaurar_area*0.0514
+  out_all_dep<-out_p12_dep+out_micro_dep
 
-out_grande_pla<-pla30_restaurar_area*0.555
-out_grande_dep<-dep30_restaurar_area*0.6942
+  #separando pequena_2_4 do total de buffer=15, subtraindo a proporção anterior
+  app15_uso_dep<-intersect(app_uso_15, geo_depressao)
+  dep15_restaurar_area<-areaRestaurar(app15_uso_dep)
+  dep15_restaurar_area<-dep15_restaurar_area - out_all_dep
+  out_p24_dep<-dep15_restaurar_area*0.0752
+  out_all_dep<-out_p24_dep+out_all_dep
 
-out_all_dep<-out_all_dep+out_grande_dep
-out_all_pla<-out_all_pla+out_grande_pla
+  #separando média do total, subtraindo a proporção anterior
+  app20_uso_dep<-intersect(app_uso_b20, geo_depressao)
+  dep20_restaurar_area<-areaRestaurar(app20_uso_dep)
+  dep20_restaurar_area<-dep20_restaurar_area - out_all_dep
+  out_med_dep<-dep20_restaurar_area*0.1426
+  out_all_dep<-out_med_dep+out_all_dep
 
-#no final, temos de app a restaurar:
+  #por fim, as grandes
+  app30_uso_dep<-intersect(out_allbig, geo_depressao)
+  dep30_restaurar_area<-areaRestaurar(app30_uso_dep)
+  dep30_restaurar_area<-dep30_restaurar_area - out_all_dep
+  out_grande_dep<-dep30_restaurar_area*0.6942
+  out_all_dep<-out_all_dep+out_grande_dep
+}else{
+  out_all_dep<-0.001
+}
+```
+
+```{r, "Cenário 4 - Resultado", echo=FALSE}
 
 soma_cenario_4<-soma_cenario_1_res+out_all_pla+out_all_dep
 
 ```
 
+
 *Cenário 1*: Compreende a soma das áreas que precisam ser restauradas dentro das áreas conhecidas (áreas com CAR), dependendo do tamanho da propriedade (micro, pequena 1 a 2 módulos, pequena 2 a 4 módulos, média e grande). Dessa forma temos:
 
-* Área para restaurar em micro propriedades: `r micro_restaurar_area`ha do total de `r micro_app_compl_area` ha existentes nesta classe.
+* Área para restaurar em micro propriedades: `r micro_restaurar_area` ha do total de `r micro_app_compl_area` ha existentes nesta classe.
 
-* Área para restaurar em pequenas propriedades (1 a 2 módulos): `r pequeno12_restaurar_area`ha do total de `r pequeno12_app_compl_area` ha existentes nesta classe.
+* Área para restaurar em pequenas propriedades (1 a 2 módulos): `r pequeno12_restaurar_area` ha do total de `r pequeno12_app_compl_area` ha existentes nesta classe.
 
-* Área para restaurar em pequenas propriedades (2 a 4 módulos): `r pequeno24_restaurar_area`ha do total de `r pequeno24_app_compl_area` ha existentes nesta classe.
+* Área para restaurar em pequenas propriedades (2 a 4 módulos): `r pequeno24_restaurar_area` ha do total de `r pequeno24_app_compl_area` ha existentes nesta classe.
 
-* Área para restaurar em médias propriedades: `r media_restaurar_area`ha do total de `r media_app_compl_area` ha existentes nesta classe.
+* Área para restaurar em médias propriedades: `r media_restaurar_area` ha do total de `r media_app_compl_area` ha existentes nesta classe.
 
-* Área para restaurar em grande propriedades: `r grande_restaurar_area`ha do total de `r grande_app_compl_area` ha existentes nesta classe.
+* Área para restaurar em grande propriedades: `r grande_restaurar_area` ha do total de `r grande_app_compl_area` ha existentes nesta classe.
 
 Finalizando O total de área a ser recuperada no Cenário 1 é `r soma_cenario_1_res` ha de `r soma_cenario_1_app` ha
 
@@ -414,13 +473,13 @@ Finalizando O total de área a ser recuperada no Cenário 1 é `r soma_cenario_1
 
 * Área para restauração existente quando consideramos como micro as áreas brancas: `r out_allmicro_restaurar_area` ha de `r out_allmicro_app_compl_area` ha totais
 
-Dessa forma a área total a ser restaurada nesse Cenário é: `r soma_cenario_2_res` ha de `r soma_cenario_2_app`
+Dessa forma a área total a ser restaurada nesse Cenário é: `r soma_cenario_2_res` ha de `r soma_cenario_2_app` ha
 
 #######################################################################################################################################
 
 *Cenário 3*: Compreende na soma das areas conhecidas (Cenário 1) com as áreas em branco (sem CAR), considerando que todas as propriedades ali existentes são grandes (mais de 10 módulos). Tendo como resultado:
 
-* Área para restauração existente quando consideramos como micro as áreas brancas: `r out_allbig_restaurar_area` ha de `r out_allmicro_app_compl_area` ha totais
+* Área para restauração existente quando consideramos como micro as áreas brancas: `r out_allbig_restaurar_area` ha de `r out_allbig_app_compl_area` ha totais
 
 Dessa forma a área total a ser restaurada nesse Cenário é: `r soma_cenario_3_res` ha de `r soma_cenario_3_app` ha
 
