@@ -1,0 +1,382 @@
+---
+title: "Análise_APP_CAR_ FBDS_BARÃO_ANTONINA"
+author: "NEEDS"
+date: "10/11/2020"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Objetivo:
+Esse script tem como objetivo comparar as APPs apontadas pelo CAR (autodeclaradas pelo proprietário) com a da FBDS da cidade Barão de Antonina. Essa comparação levará em conta o tamanho das propriedades(micro, pequena, média e grande). 
+
+As informaçoes obtidas sobre o CAR se encontram no site: "http://www.car.gov.br/publico/imoveis/index"
+As informações obtidas sobre a APP da FBDS se encontram no site:
+"http://geo.fbds.org.br"
+
+
+#### Comando para checar se existem os pacotes em seu PC e baixar caso não possua:
+```{r}
+list.of.packages <- c("raster", "sp", "rgdal", "rgeos")
+
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) 
+
+install.packages(new.packages)
+```
+
+#### Comando para carregar os pacotes:
+```{r, message=FALSE, warning=FALSE}
+require(rgeos)
+require(raster)
+require(sp)
+require(rgdal)
+```
+
+```{r, echo=FALSE}
+#dissolve os poligonos intersectados
+mergePoli<-function(buff){
+  
+  gt <- gIntersects(buff, byid = TRUE, returnDense = FALSE)
+  ut <- unique(gt)
+  nth <- 1:length(ut)
+  buff$n <- 1:nrow(buff)
+  buff$nth <- NA
+  for(i in 1:length(ut)){
+    x <- ut[[i]]
+    buff$nth[x] <- i
+  }
+  buffdis <- gUnaryUnion(buff, buff$nth)
+  return(buffdis)
+}
+
+```
+
+###Passos das análises 
+->Gerar buffer da APP que deve ser recuperada obrigatoriamente pelas "regras transitórias" a partir da hidrografia disponibilizada pela FBDS
+->Gerar buffer da APP que deve ser recuperada obrigatoriamente pelas "regras transitórias" a partir da hidrografia disponibilizada pelo CAR
+->Fazer a intersecção entre a APP gerada(a partir da hidrografia do CAR) e a APP disponibilizada pelo CAR para obter uma APP mais próxima da declarada pelos proprietários 
+->Fazer a intersecção entre a APP do CAR e da FBDS para obter a área da APP diferente por tamanho de propriedade 
+
+###Carregar os mapas do CAR da cidade de Barão de Antonina para o R:
+```{r,warning=FALSE,message=FALSE,results='hide'}
+app_car<-readOGR(dsn="../DATA_USE/CAR/Barão_de_Antonina",layer="APP", use_iconv=TRUE, encoding="UTF-8")
+Encoding(app_car@data$NOM_TEMA) <- "UTF-8"
+
+area_imovel_car<-readOGR(dsn="../DATA_USE/CAR/Barão_de_Antonina",layer="AREA_IMOVEL", use_iconv=TRUE, encoding="UTF-8")
+Encoding(area_imovel_car@data$NOM_MUNICI) <- "UTF-8"
+Encoding(area_imovel_car@data$CONDICAO_I) <- "UTF-8"
+
+hidrografia_car<-readOGR(dsn="../DATA_USE/CAR/Barão_de_Antonina",layer="HIDROGRAFIA", use_iconv=TRUE, encoding="UTF-8")
+Encoding(hidrografia_car@data$NOM_TEMA) <- "UTF-8"
+
+                          
+nascente_car<-readOGR(dsn="../DATA_USE/CAR/Barão_de_Antonina",layer="NASCENTE_OLHO_DAGUA", use_iconv=TRUE, encoding="UTF-8")
+Encoding(nascente_car@data$TEMA) <- "UTF-8"
+
+
+vegetacao_nat_car<-readOGR(dsn="../DATA_USE/CAR/Barão_de_Antonina",layer="VEGETACAO_NATIVA", use_iconv=TRUE, encoding="UTF-8")
+Encoding(vegetacao_nat_car@data$NOM_TEMA) <- "UTF-8"
+
+
+mapa_MDA<-readOGR(dsn="../DATA_USE/FBDS_Hidrografia",layer="SP_3505005_MASSAS_DAGUA", use_iconv=TRUE, encoding="UTF-8")
+
+mapa_NAS<-readOGR(dsn="../DATA_USE/FBDS_Hidrografia",layer="SP_3505005_NASCENTES", use_iconv=TRUE, encoding="UTF-8")
+
+mapa_RMS<-readOGR(dsn="../DATA_USE/FBDS_Hidrografia",layer="SP_3505005_RIOS_SIMPLES", use_iconv=TRUE, encoding="UTF-8")
+
+mapa_RMD<-readOGR(dsn="../DATA_USE/FBDS_Hidrografia",layer="SP_3505005_RIOS_DUPLOS", use_iconv=TRUE, encoding="UTF-8")
+
+#mapa_USO<-readOGR(dsn="../DATA_USE/FBDS_APP_USO_Municipios",layer="SP_3505005_USO", use_iconv=TRUE, encoding="UTF-8")
+```
+
+### Reprojeta os mapas 
+```{r, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+  #reprojetar os obj para a mesma projeção (trocar para a mais adequada)
+    app_car <- spTransform(app_car, CRS("+init=epsg:31982"))
+    area_imovel_car <- spTransform(area_imovel_car, CRS("+init=epsg:31982"))
+    hidrografia_car <- spTransform(hidrografia_car, CRS("+init=epsg:31982"))
+    nascente_car <- spTransform(nascente_car, CRS("+init=epsg:31982"))
+    vegetacao_nat_car <- spTransform(vegetacao_nat_car, CRS("+init=epsg:31982"))
+    
+    #mapa_USO <- spTransform(mapa_USO, CRS("+init=epsg:31982"))
+    mapa_RMD <- spTransform(mapa_RMD, CRS("+init=epsg:31982"))
+    mapa_RMS <- spTransform(mapa_RMS, CRS("+init=epsg:31982"))
+    mapa_MDA <- spTransform(mapa_MDA, CRS("+init=epsg:31982"))
+    mapa_NAS <- spTransform(mapa_NAS, CRS("+init=epsg:31982"))
+```
+
+### Separa as propriedades por tamanho
+```{r, echo=FALSE}
+
+area_imovel_car<-gBuffer(area_imovel_car, byid=TRUE, width=0)
+
+#Separa as propriedades por tamanhos
+micro<-area_imovel_car[area_imovel_car@data$NUM_MODULO<1,]
+
+pequena_1_2<-area_imovel_car[area_imovel_car@data$NUM_MODULO>=1 & area_imovel_car@data$NUM_MODULO<2,]
+
+pequena_2_4<-area_imovel_car[area_imovel_car@data$NUM_MODULO>=2 & area_imovel_car@data$NUM_MODULO<4,]
+
+media<-area_imovel_car[area_imovel_car@data$NUM_MODULO>=4 & area_imovel_car@data$NUM_MODULO<10,]
+
+grande<-area_imovel_car[area_imovel_car@data$NUM_MODULO>=10,]
+```
+### Separar a hidrografia do CAR 
+```{r}
+#Separar a hidrografia 
+                                                  
+plot(hidrografia_car, col = "black", border="black")
+
+rios_0_10m<- hidrografia_car[hidrografia_car@data$NOM_TEMA == "Curso d'água natural de até 10 metros",]
+plot(hidrografia_car[rios_0_10m,], col = "green", border="green", add=TRUE)
+
+rios_10_50m<- hidrografia_car[hidrografia_car@data$NOM_TEMA == "Curso d'água natural de 10 a 50 metros",]
+plot(hidrografia_car[rios_10_50m,], col = "red", border="red", add=TRUE)
+
+represamento <- hidrografia_car[hidrografia_car@data$NOM_TEMA == "Reservatório artificial decorrente de barramento ou represamento de cursos d'água naturais",]
+plot(hidrografia_car[represamento,], col = "yellow", border="yellow", add=TRUE)
+
+lago_lagoa_nat <- hidrografia_car[hidrografia_car@data$NOM_TEMA == "Lago ou lagoa natural",]
+plot(hidrografia_car[lago_lagoa_nat,], col = "purple", border="purple", add=TRUE)
+```
+####Gerar o buffer da área da APP que deve ser recuperada obrigatoriamente pelas "regras transitórias":
+
+#Até 1 módulo fiscal = 5m(todos os rios), 15m(nascentes)
+#De 1-2 módulos ficsais = 8m(todos os rios), 15m(nascentes)
+#De 2-4 módulos fiscais = 15m(todos os rios), 15m(nascentes)
+#De 4-10 módulos fiscais = 20m(rios de 0-10m), 30m(rios de 10,1-60m), 15m(nascentes)
+#Maior que 10 módulos fiscais = 30m(rios de 0-60m), 15m(nascentes)
+
+```{r, echo=FALSE,}
+
+#Seleciona as massas d'água maiores que 1ha
+lago_lagoa_nat <-lago_lagoa_nat[lago_lagoa_nat@data$NUM_AREA > 1,]
+lago_lagoa_nat <-gBuffer(lago_lagoa_nat, byid=TRUE, width=0)
+represamento <-represamento[represamento@data$NUM_AREA > 1,]
+represamento <-gBuffer(represamento, byid=TRUE, width=0)
+mapa_massa_d_agua <-gUnion(lago_lagoa_nat, represamento)
+mapa_massa_d_agua <-gBuffer(mapa_massa_d_agua, byid=TRUE, width=0)
+
+#Gerar um buffer (0m) na vegetação nativa 
+vegetacao_nat_car <-gBuffer(vegetacao_nat_car, byid=TRUE, width=0)
+
+#Gerar um buffer de 15m para as nascentes 
+nascente_car_b <-gBuffer(nascente_car, byid=TRUE, width = 15)
+
+mapa_mda_rios_10_50 <-gUnion(mapa_massa_d_agua, rios_10_50m)
+mapa_hidro_car<-gUnion(mapa_mda_rios_10_50, rios_0_10m)
+```
+
+```{r, echo=FALSE,}
+#Seleciona as massas d'água maiores que 1ha
+mapa_MDA<-mapa_MDA[mapa_MDA@data$AREA_HA > 1,]
+mapa_MDA<-gBuffer(mapa_MDA, byid=TRUE, width=0)
+
+#mapa_USO<-gBuffer(mapa_USO, byid=TRUE, width=0)
+nas_b<-gBuffer(mapa_NAS, byid=TRUE, width = 15)
+
+mapa_hidro_pol<-gUnion(mapa_MDA, mapa_RMD)
+mapa_hidro<-gUnion(mapa_hidro_pol, mapa_RMS)
+```
+
+```{r, echo=FALSE}
+micro_app_original_car<-gBuffer(mapa_hidro_car, byid=TRUE, width=5)
+micro_app_original_car<-gUnion(micro_app_original_car,nascente_car_b )
+micro_app_original_car<-gDifference(micro_app_original_car, mapa_mda_rios_10_50)
+
+pequeno12_app_original_car<-gBuffer(mapa_hidro_car, byid=TRUE, width=8)
+pequeno12_app_original_car<-gUnion(pequeno12_app_original_car, nascente_car_b)
+pequeno12_app_original_car<-gDifference(pequeno12_app_original_car, mapa_mda_rios_10_50)
+
+pequeno24_app_original_car<-gBuffer(mapa_hidro_car, byid=TRUE, width=15)
+pequeno24_app_original_car<-gUnion(pequeno24_app_original_car, nascente_car_b)
+pequeno24_app_original_car<-gDifference(pequeno24_app_original_car, mapa_mda_rios_10_50)
+
+#Buffer para tamanho "médio" é diferente entre rios e massa d'água
+media_mda_rmd_car<-gBuffer(mapa_mda_rios_10_50, byid=TRUE, width=30)
+media_rios_car<-gBuffer(rios_0_10m, byid=TRUE, width=20)
+media_app_original_car<-gUnion(media_mda_rmd_car, media_rios_car)
+media_app_original_car<-gUnion(media_app_original_car, nascente_car_b)
+media_app_original_car<-gDifference(media_app_original_car, mapa_mda_rios_10_50)
+
+grande_app_original_car<-gBuffer(mapa_hidro_car, byid=TRUE, width=30)
+grande_app_original_car<-gUnion(grande_app_original_car, nascente_car_b)
+grande_app_original_car<-gDifference(grande_app_original_car, mapa_mda_rios_10_50)
+
+```
+
+```{r, echo=FALSE}
+micro_app_original<-gBuffer(mapa_hidro, byid=TRUE, width=5)
+micro_app_original<-gUnion(micro_app_original, nas_b)
+micro_app_original<-gDifference(micro_app_original, mapa_hidro_pol)
+
+pequeno12_app_original<-gBuffer(mapa_hidro, byid=TRUE, width=8)
+pequeno12_app_original<-gUnion(pequeno12_app_original, nas_b)
+pequeno12_app_original<-gDifference(pequeno12_app_original, mapa_hidro_pol)
+
+pequeno24_app_original<-gBuffer(mapa_hidro, byid=TRUE, width=15)
+pequeno24_app_original<-gUnion(pequeno24_app_original, nas_b)
+pequeno24_app_original<-gDifference(pequeno24_app_original, mapa_hidro_pol)
+
+#Buffer para tamanho "médio" é diferente entre rios e massa d'água
+media_mda_rmd<-gBuffer(mapa_hidro_pol, byid=TRUE, width=30)
+media_rios<-gBuffer(mapa_RMS, byid=TRUE, width=20)
+media_app_original<-gUnion(media_mda_rmd, media_rios)
+media_app_original<-gUnion(media_app_original, nas_b)
+media_app_original<-gDifference(media_app_original, mapa_hidro_pol)
+
+grande_app_original<-gBuffer(mapa_hidro, byid=TRUE, width=30)
+grande_app_original<-gUnion(grande_app_original, nas_b)
+grande_app_original<-gDifference(grande_app_original, mapa_hidro_pol)
+```
+
+```{r, "micro", echo=FALSE}
+
+app_car<-gBuffer(app_car, byid=TRUE, width=0)
+
+#Dados do CAR
+micro_app_car<-gIntersection(micro_app_original_car, micro)
+micro_app_car<-gBuffer(micro_app_car, byid=TRUE, width=0)
+micro_app_car<-raster::intersect(micro_app_car, app_car)
+micro_app_car<-gBuffer(micro_app_car, byid=TRUE, width=0)
+
+micro_app_veg<-gIntersection(vegetacao_nat_car, micro_app_car)
+
+#Dados da FBDS
+micro_app<-gIntersection(micro_app_original, micro)
+micro_app<-gBuffer(micro_app, byid=TRUE, width=0)
+```
+
+```{r, "Buffer micro", echo=FALSE}
+#União entre os dados da FBDS e do CAR
+fbds_car_micro_comum<- raster::intersect(micro_app_car, micro_app)
+fbds_car_micro_comum<- mergePoli(fbds_car_micro_comum)
+fbds_car_micro_comum_area<-gArea(fbds_car_micro_comum)/10000
+
+micro_app_total<-mergePoli(micro_app_car)
+micro_app_total<-gArea(micro_app_total)/10000
+diferenca_micro_car<-(micro_app_total - fbds_car_micro_comum_area)
+
+porcentagem_micro<-(diferenca_micro_car/micro_app_total)*100
+```
+
+```{r, "pequena_1_2 hectares", echo=FALSE}
+#APP do CAR
+peq_1_2_app_car<-gIntersection(pequeno12_app_original_car, pequena_1_2)
+peq_1_2_app_car<-gBuffer(peq_1_2_app_car, byid=TRUE, width=0)
+peq_1_2_app_car<-raster::intersect(peq_1_2_app_car, app_car)
+peq_1_2_app_car<-gBuffer(peq_1_2_app_car, byid=TRUE, width=0)
+
+peq_1_2_app_veg<-raster::intersect(vegetacao_nat_car,peq_1_2_app_car)
+
+#APP do FBDS
+pequeno12_app<-gIntersection(pequeno12_app_original, pequena_1_2)
+pequeno12_app<-gBuffer(pequeno12_app, byid=TRUE, width=0)
+```
+```{r, "Buffer pequena_1_2 hectares", echo=FALSE}
+#União entre os dados da FBDS e do CAR
+fbds_car_peq_1_2_comum<- raster::intersect(peq_1_2_app_car, pequeno12_app)
+fbds_car_peq_1_2_comum<- mergePoli(fbds_car_peq_1_2_comum)
+fbds_car_peq_1_2_comum_area<-gArea(fbds_car_peq_1_2_comum)/10000
+
+peq_1_2_app_total<-mergePoli(peq_1_2_app_car)
+peq_1_2_app_total<-gArea(peq_1_2_app_total)/10000
+diferenca_peq_1_2_car<-(peq_1_2_app_total - fbds_car_peq_1_2_comum_area)
+
+porcentagem_peq_1_2<-(diferenca_peq_1_2_car/peq_1_2_app_total)*100
+```
+```{r, " pequena_2_4 hectares", echo=FALSE}
+#APP do CAR
+peq_2_4_app_car<-gIntersection(pequeno24_app_original_car, pequena_2_4)
+peq_2_4_app_car<-gBuffer(peq_2_4_app_car, byid=TRUE, width=0)
+peq_2_4_app_car<-raster::intersect(peq_2_4_app_car, app_car)
+peq_2_4_app_car<-gBuffer(peq_2_4_app_car, byid=TRUE, width=0)
+
+peq_2_4_app_veg<-raster::intersect(vegetacao_nat_car,peq_2_4_app_car)
+
+#APP do FBDS
+pequeno24_app<-gIntersection(pequeno24_app_original, pequena_2_4)
+pequeno24_app<-gBuffer(pequeno24_app, byid=TRUE, width=0)
+```
+
+```{r, "Buffer pequena_2_4 hectares", echo=FALSE}
+#União entre os dados da FBDS e do CAR
+fbds_car_peq_2_4_comum<- raster::intersect(peq_2_4_app_car, pequeno24_app)
+fbds_car_peq_2_4_comum<- mergePoli(fbds_car_peq_2_4_comum)
+fbds_car_peq_2_4_comum_area<-gArea(fbds_car_peq_2_4_comum)/10000
+
+peq_2_4_app_total<-mergePoli(peq_2_4_app_car)
+peq_2_4_app_total<-gArea(peq_2_4_app_total)/10000
+diferenca_peq_2_4_car<-(peq_2_4_app_total - fbds_car_peq_2_4_comum_area)
+
+porcentagem_peq_2_4<-(diferenca_peq_2_4_car/peq_2_4_app_total)*100
+```
+```{r, "média", echo=FALSE}
+#APP do CAR
+media_app_car<-gIntersection(media_app_original_car, media)
+media_app_car<-gBuffer(media_app_car, byid=TRUE, width=0)
+media_app_car<-raster::intersect(media_app_car, app_car)
+media_app_car<-gBuffer(media_app_car, byid=TRUE, width=0)
+
+media_app_veg<-raster::intersect(vegetacao_nat_car,media_app_car)
+
+#APP do FBDS
+media_app<-gIntersection(media_app_original,media)
+media_app<-gBuffer(media_app, byid=TRUE, width=0)
+```
+
+```{r, "Buffer média", echo=FALSE}
+#União entre os dados da FBDS e do CAR
+fbds_car_media_comum<- raster::intersect(media_app_car, media_app)
+fbds_car_media_comum<- mergePoli(fbds_car_media_comum)
+fbds_car_media_comum_area<-gArea(fbds_car_media_comum)/10000
+
+media_app_total<-mergePoli(media_app_car)
+media_app_total<-gArea(media_app_total)/10000
+diferenca_media_car<-(media_app_total - fbds_car_media_comum_area)
+
+porcentagem_media<-(diferenca_media_car/media_app_total)*100
+```
+```{r, "grande", echo=FALSE}
+#APP do CAR
+grande_app_car<-gIntersection(grande_app_original_car, grande)
+grande_app_car<-gBuffer(grande_app_car, byid=TRUE, width=0)
+grande_app_car<-raster::intersect(grande_app_car, app_car)
+grande_app_car<-gBuffer(grande_app_car, byid=TRUE, width=0)
+
+grande_app_veg<-raster::intersect(vegetacao_nat_car,grande_app_car)
+
+#APP do FBDS
+grande_app<-gIntersection(grande_app_original,grande)
+grande_app<-gBuffer(grande_app, byid=TRUE, width=0)
+```
+
+```{r, "Buffer grande", echo=FALSE}
+#União entre os dados da FBDS e do CAR
+fbds_car_grande_comum<- raster::intersect(grande_app_car, grande_app)
+fbds_car_grande_comum<- mergePoli(fbds_car_grande_comum)
+fbds_car_grande_comum_area<-gArea(fbds_car_grande_comum)/10000
+
+grande_app_total<-mergePoli(grande_app_car)
+grande_app_total<-gArea(grande_app_total)/10000
+diferenca_grande_car<-(grande_app_total - fbds_car_grande_comum_area)
+
+porcentagem_grande<-(diferenca_grande_car/grande_app_total)*100
+```
+###Histograma 
+```{r}
+classes <- c('Micro','Pequena1_2', 'Pequena2_4', 'Média', 'Grande')
+porcentagem <- c(porcentagem_micro, porcentagem_peq_1_2, porcentagem_peq_2_4, porcentagem_media, porcentagem_grande)
+hectares <- c(diferenca_micro_car, diferenca_peq_1_2_car, diferenca_peq_2_4_car , diferenca_media_car, diferenca_grande_car)
+meu.df <- data.frame(classes, porcentagem, hectares)
+```
+
+```{r}
+barplot(porcentagem, names.arg=meu.df$classes, main="Áreas de APP declaradas pelo CAR diferentes da FBDS", col=c(1,2,3,4,5), ylim = c(0,100), ylab="% da área total da APP")
+
+barplot(hectares, names.arg=meu.df$classes, main="Áreas de APP declaradas pelo CAR diferentes da FBDS", col=c(1,2,3,4,5), ylim = c(0,500), ylab="Quantidade em hectares")
+```
+
+
