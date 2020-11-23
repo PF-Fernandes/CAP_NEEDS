@@ -12,8 +12,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Introdução:
 Nesse script buscamos analisar os dados shapefile do Cadastro Ambiental Rural(CAR) para os municipio do Sudoeste Paulista, do site "http://www.car.gov.br/publico/imoveis/index", carregar, plotar e realizar algumas analises.
 
-Lembrando que utilizamos o shapefile editado sem os imoveis tidos como "cancelados por decisão administrativa".
-
 #### Comando para checar se existem os pacotes em seu PC e baixar caso não possua:
 ```{r}
 list.of.packages <- c("raster", "sp", "rgdal", "dplyr", "XML", "curl")
@@ -36,7 +34,7 @@ require(curl)
 
 #### Carregar os mapas do Sudoeste Paulista para o R:
 ```{r,warning=FALSE,message=FALSE,results='hide'}
-ALL_car<-readOGR(dsn="../DATA_USE/CAR_UNION_EDIT",layer="CAR_ALL_MUN")
+ALL_car<-readOGR(dsn="../DATA_USE/CAR_DANY",layer="CAR_ALL_sudoeste")
 ```
 
 #### Visualizar o mapa:
@@ -151,47 +149,47 @@ ha<- sum(ALL_car@data$NUM_AREA)
 
 #### Quantidade total de área/hectares de micro propriedades:
 ```{r}
-13161.77+40691.05
+14940.62+40787.21
 
 # Porcentagem
-ha_mi <- (13161.77+40691.05)
+ha_mi <- (14940.62+40787.21)
 (ha_mi/ha)*100 
 ```
 
 #### Quantidade total de área/hectares de pequenas propriedades 1:
 ```{r}
-11885.25+52779.91
+11900.68+52850.67
 
 # Porcentagem
-ha_p1<- (11885.25+52779.91)
+ha_p1<- (11900.68+52850.67)
 (ha_p1/ha)*100  
 ```
 
 #### Quantidade total de área/hectares de pequenas propriedades 2:
 ```{r}
-16778.23+66775.82
+18730.98+66775.82
 
 # Porcentagem
-ha_p2<- (16778.23+66775.82)
+ha_p2<- (18730.98+66775.82)
 (ha_p2/ha)*100  
 ```
 
 
 #### Quantidade total de área/hectares de medias propriedades:
 ```{r}
-25640.73+106958.5
+26359.78+108236.4
 
 # Porcentagem
-ha_m<- (25640.73+106958.5)
+ha_m<- (26359.78+108236.4)
 (ha_m/ha)*100  
 ```
 
 #### Quantidade total de área/hectares de grandes propriedades:
 ```{r}
-137878+413820.8
+210126.3+429622.3
 
 # Porcentagem
-ha_g<- (137878+413820.8)
+ha_g<- (210126.3+429622.3)
 (ha_g/ha)*100 
 ```
 

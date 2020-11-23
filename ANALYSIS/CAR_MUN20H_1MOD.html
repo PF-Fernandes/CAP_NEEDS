@@ -391,20 +391,20 @@ require(curl)</code></pre>
 <div id="carregar-os-mapas-do-sudoeste-paulista-para-o-r" class="section level4">
 <h4>Carregar os mapas do Sudoeste Paulista para o R:</h4>
 <pre class="r"><code># Municipios com 20 ha = 1 módulo fiscal
-vinte_ha_car&lt;-readOGR(dsn=&quot;../DATA_USE/CAR_UNION_EDIT&quot;,layer=&quot;CAR_20HA_1MOD&quot;)</code></pre>
+vinte_ha_car&lt;-readOGR(dsn=&quot;../DATA_USE/CAR_DANY&quot;,layer=&quot;Com_20Mod&quot;)</code></pre>
 </div>
 <div id="analises" class="section level2">
 <h2>Analises:</h2>
 <div id="quantidade-total-de-áreahectares" class="section level4">
 <h4>Quantidade total de área/hectares:</h4>
 <pre class="r"><code>sum(vinte_ha_car@data$NUM_AREA)</code></pre>
-<pre><code>## [1] 681026.1</code></pre>
+<pre><code>## [1] 698364.3</code></pre>
 </div>
 <div id="quantidade-total-de-áreahectares-de-micro-propriedades" class="section level4">
 <h4>Quantidade total de área/hectares de micro propriedades:</h4>
 <pre class="r"><code>ha_micro_prop &lt;- vinte_ha_car[vinte_ha_car@data$NUM_AREA &lt; 20.000000,]
 sum(ha_micro_prop@data$NUM_AREA)</code></pre>
-<pre><code>## [1] 40691.05</code></pre>
+<pre><code>## [1] 40787.21</code></pre>
 </div>
 <div id="quantidade-total-de-áreahectares-de-pequenas-propriedades-1" class="section level4">
 <h4>Quantidade total de área/hectares de pequenas propriedades 1:</h4>
@@ -412,7 +412,7 @@ sum(ha_micro_prop@data$NUM_AREA)</code></pre>
 ha_peq2_prop1 &lt;- vinte_ha_car@data$NUM_AREA &lt;  40.000000
 ha_peq_prop1 &lt;- vinte_ha_car[ha_peq1_prop1&amp;ha_peq2_prop1,]
 sum(ha_peq_prop1@data$NUM_AREA) </code></pre>
-<pre><code>## [1] 52779.91</code></pre>
+<pre><code>## [1] 52850.67</code></pre>
 </div>
 <div id="quantidade-total-de-áreahectares-de-pequenas-propriedades-2" class="section level4">
 <h4>Quantidade total de área/hectares de pequenas propriedades 2:</h4>
@@ -420,7 +420,7 @@ sum(ha_peq_prop1@data$NUM_AREA) </code></pre>
 ha_peq2_prop2 &lt;- vinte_ha_car@data$NUM_AREA &lt;  80.000000
 ha_peq_prop2 &lt;- vinte_ha_car[ha_peq1_prop2&amp;ha_peq2_prop2,]
 sum(ha_peq_prop2@data$NUM_AREA) </code></pre>
-<pre><code>## [1] 66775.82</code></pre>
+<pre><code>## [1] 66867.7</code></pre>
 </div>
 <div id="quantidade-total-de-áreahectares-de-médias-propriedades" class="section level4">
 <h4>Quantidade total de área/hectares de médias propriedades:</h4>
@@ -428,13 +428,13 @@ sum(ha_peq_prop2@data$NUM_AREA) </code></pre>
 ha_med1_prop&lt;- vinte_ha_car@data$NUM_AREA &lt; 200.000000
 ha_med2_prop &lt;- vinte_ha_car[ha_med_prop&amp;ha_med1_prop,]
 sum(ha_med2_prop@data$NUM_AREA) </code></pre>
-<pre><code>## [1] 106958.5</code></pre>
+<pre><code>## [1] 108236.4</code></pre>
 </div>
 <div id="quantidade-total-de-áreahectares-de-grandes-propriedades" class="section level4">
 <h4>Quantidade total de área/hectares de grandes propriedades:</h4>
 <pre class="r"><code>ha_gra_prop &lt;- vinte_ha_car[vinte_ha_car@data$NUM_AREA &gt; 200.000000,]
 sum(ha_gra_prop@data$NUM_AREA) </code></pre>
-<pre><code>## [1] 413820.8</code></pre>
+<pre><code>## [1] 429622.3</code></pre>
 </div>
 </div>
 
